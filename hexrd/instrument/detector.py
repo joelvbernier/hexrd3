@@ -965,7 +965,7 @@ class Detector:
 
         # initialize output with nans
         if pad_with_nans:
-            int_xy = np.nan*np.ones(len(xy))
+            int_xy = np.full(len(xy), np.nan)
         else:
             int_xy = np.zeros(len(xy))
 
@@ -975,35 +975,26 @@ class Detector:
         # grab fractional pixel indices of clipped points
         ij_frac = self.cartToPixel(xy_clip)
 
-        # get floors/ceils from array of pixel _centers_
-        # and fix indices running off the pixel centers
-        # !!! notice we already clipped points to the panel!
-        i_floor = cellIndices(self.row_pixel_vec, xy_clip[:, 1])
-        i_floor_img = _fix_indices(i_floor, 0, self.rows - 1)
+        i_floor = np.floor(ij_frac[:, 1]).astype(int)
+        i_floor_img = np.clip(i_floor, 0, self.rows - 1)
 
-        j_floor = cellIndices(self.col_pixel_vec, xy_clip[:, 0])
-        j_floor_img = _fix_indices(j_floor, 0, self.cols - 1)
+        j_floor = np.floor(ij_frac[:, 0]).astype(int)
+        j_floor_img = np.clip(j_floor, 0, self.cols - 1)
 
-        # ceilings from floors
         i_ceil = i_floor + 1
-        i_ceil_img = _fix_indices(i_ceil, 0, self.rows - 1)
+        i_ceil_img = np.clip(i_ceil, 0, self.rows - 1)
 
-        j_ceil = j_floor + 1
-        j_ceil_img = _fix_indices(j_ceil, 0, self.cols - 1)
+        j_ceil = np.floor(ij_frac[:, 0]).astype(int) + 1
+        j_ceil_img = np.clip(j_ceil, 0, self.cols - 1)
 
-        # first interpolate at top/bottom rows
-        row_floor_int = \
-            (j_ceil - ij_frac[:, 1])*img[i_floor_img, j_floor_img] \
-            + (ij_frac[:, 1] - j_floor)*img[i_floor_img, j_ceil_img]
-        row_ceil_int = \
-            (j_ceil - ij_frac[:, 1])*img[i_ceil_img, j_floor_img] \
-            + (ij_frac[:, 1] - j_floor)*img[i_ceil_img, j_ceil_img]
+        row_floor_int = (j_ceil - ij_frac[:, 1])  * img[i_floor_img, j_floor_img] \
+                      - (j_floor - ij_frac[:, 1]) * img[i_floor_img, j_ceil_img]
+        row_ceil_int  = (j_ceil - ij_frac[:, 1])  * img[i_ceil_img, j_floor_img] \
+                      - (j_floor - ij_frac[:, 1]) * img[i_ceil_img, j_ceil_img]
 
-        # next interpolate across cols
-        int_vals = \
-            (i_ceil - ij_frac[:, 0])*row_floor_int \
-            + (ij_frac[:, 0] - i_floor)*row_ceil_int
+        int_vals = (ij_frac[:, 0] - i_floor) * row_ceil_int - (ij_frac[:, 0] - i_ceil) * row_floor_int
         int_xy[on_panel] = int_vals
+
         return int_xy
 
     def make_powder_rings(
@@ -1541,15 +1532,6 @@ class Detector:
 # =============================================================================
 # UTILITY METHODS
 # =============================================================================
-
-def _fix_indices(idx, lo, hi):
-    nidx = np.array(idx)
-    off_lo = nidx < lo
-    off_hi = nidx > hi
-    nidx[off_lo] = lo
-    nidx[off_hi] = hi
-    return nidx
-
 
 def _row_edge_vec(rows, pixel_size_row):
     return pixel_size_row*(0.5*rows-np.arange(rows+1))
