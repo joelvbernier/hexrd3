@@ -1,16 +1,17 @@
 import importlib.resources
+import time
+import warnings
+
+import h5py
 import numpy as np
 from numba import njit
+from scipy.interpolate import interp1d
+
 from hexrd import constants
 from hexrd.material import spacegroup, symbols, symmetry
 from hexrd.ipfcolor import sphere_sector, colorspace
-from hexrd.valunits import valWUnit
 import hexrd.resources
-import warnings
-import h5py
-from pathlib import Path
-from scipy.interpolate import interp1d
-import time
+from hexrd.valunits import valWUnit
 
 eps = constants.sqrt_epsf
 ENERGY_ID = 0
@@ -72,33 +73,25 @@ class unitcell:
         beamenergy,
         sgsetting=0,
     ):
-
         self._tstart = time.time()
         self.pref = 0.4178214
-
         self.atom_type = atomtypes
         self.chargestates = charge
         self.atom_pos = atominfo
-
         self._dmin = dmin
-
         self.lparms = lp
-
         self.U = U
-        '''
-        initialize interpolation from table for anomalous scattering
-        '''
+        self.hkls = None
+
+        # initialize interpolation from table for anomalous scattering
         self.InitializeInterpTable()
 
-        '''
-        sets x-ray energy
-        calculate wavelength
-        also calculates anomalous form factors for xray scattering
-        '''
+        # sets x-ray energy
+        # calculate wavelength
+        # also calculates anomalous form factors for xray scattering
         self.voltage = beamenergy * 1000.0
-        '''
-        calculate symmetry
-        '''
+
+        # calculate symmetry
         self.sgsetting = sgsetting
         self.sgnum = sgnum
 
@@ -106,14 +99,12 @@ class unitcell:
         self.tinit = self._tstop - self._tstart
 
     def GetPgLg(self):
+        ''' simple subroutine to get point and laue groups to maintain
+            consistency for planedata initialization in the materials class
         '''
-        simple subroutine to get point and laue groups
-        to maintain consistency for planedata initialization
-        in the materials class
-        '''
-        for k in list(_pgDict.keys()):
-            if self.sgnum in k:
-                pglg = _pgDict[k]
+        for key in _pgDict.keys():
+            if self.sgnum in key:
+                pglg = _pgDict[key]
                 self._pointGroup = pglg[0]
                 self._laueGroup = pglg[1]
                 self._supergroup = pglg[2]
@@ -128,10 +119,8 @@ class unitcell:
             / self.voltage
         )
         self.wavelength *= 1e9
-        # self.CalcAnomalous()
 
     def calcBetaij(self):
-
         self.betaij = np.zeros([3, 3, self.atom_ntype])
         for i in range(self.U.shape[0]):
             U = self.U[i, :]
@@ -142,7 +131,6 @@ class unitcell:
             self.betaij[:, :, i] *= 2.0 * np.pi**2 * self._aij
 
     def calcmatrices(self):
-
         a = self.a
         b = self.b
         c = self.c
@@ -154,14 +142,10 @@ class unitcell:
         ca = np.cos(alpha)
         cb = np.cos(beta)
         cg = np.cos(gamma)
-        sa = np.sin(alpha)
-        sb = np.sin(beta)
         sg = np.sin(gamma)
         tg = np.tan(gamma)
 
-        '''
-            direct metric tensor
-        '''
+        # direct metric tensor
         self._dmt = np.array(
             [
                 [a**2, a * b * cg, a * c * cb],
@@ -174,14 +158,10 @@ class unitcell:
         if self.vol < 1e-5:
             warnings.warn('unitcell volume is suspiciously small')
 
-        '''
-            reciprocal metric tensor
-        '''
+        # reciprocal metric tensor
         self._rmt = np.linalg.inv(self.dmt)
 
-        '''
-            direct structure matrix
-        '''
+        # direct structure matrix
         self._dsm = np.array(
             [
                 [a, b * cg, c * cb],
@@ -189,12 +169,9 @@ class unitcell:
                 [0.0, 0.0, self.vol / (a * b * sg)],
             ]
         )
-
         self._dsm[np.abs(self._dsm) < eps] = 0.0
 
-        '''
-            reciprocal structure matrix
-        '''
+        # reciprocal structure matrix
         self._rsm = np.array(
             [
                 [1.0 / a, 0.0, 0.0],
@@ -221,10 +198,11 @@ class unitcell:
             ]
         )
 
-    ''' transform between any crystal space to any other space.
-        choices are 'd' (direct), 'r' (reciprocal) and 'c' (cartesian)'''
 
     def TransSpace(self, v_in, inspace, outspace):
+        ''' Transform between any crystal space to any other space. Choices are
+            'd' (direct), 'r' (reciprocal) and 'c' (cartesian)
+        '''
         if inspace == 'd':
             if outspace == 'r':
                 v_out = np.dot(v_in, self.dmt)
@@ -260,77 +238,59 @@ class unitcell:
 
         return v_out
 
-    ''' calculate dot product of two vectors in any space 'd' 'r' or 'c' '''
 
     def CalcDot(self, u, v, space):
-
+        ''' Calculate dot product of two vectors in any space 'd' 'r' or 'c' '''
         if space == 'd':
-            dot = np.dot(u, np.dot(self.dmt, v))
+            return np.dot(u, np.dot(self.dmt, v))
         elif space == 'r':
-            dot = np.dot(u, np.dot(self.rmt, v))
+            return np.dot(u, np.dot(self.rmt, v))
         elif space == 'c':
-            dot = np.dot(u, v)
-        else:
-            raise ValueError('space is unidentified')
+            return np.dot(u, v)
+        raise ValueError(f'Space {space} not recognized. Must be d, r, or c.')
 
-        return dot
 
     def CalcLength(self, u, space):
-
         if space == 'd':
             mat = self.dmt
-            # vlen = np.sqrt(np.dot(u, np.dot(self.dmt, u)))
         elif space == 'r':
             mat = self.rmt
-            # vlen = np.sqrt(np.dot(u, np.dot(self.rmt, u)))
         elif space == 'c':
             mat = np.eye(3)
-            # vlen = np.linalg.norm(u)
         else:
             raise ValueError('incorrect space argument')
 
         uu = np.array(u).astype(np.float64)
         return _calclength(uu, mat)
 
-    ''' normalize vector in any space 'd' 'r' or 'c' '''
 
     def NormVec(self, u, space):
-        ulen = self.CalcLength(u, space)
-        return u / ulen
+        ''' normalize vector in any space 'd' 'r' or 'c' '''
+        return u / self.CalcLength(u, space)
 
-    ''' calculate angle between two vectors in any space'''
 
     def CalcAngle(self, u, v, space):
-
+        ''' calculate angle between two vectors in any space'''
         ulen = self.CalcLength(u, space)
         vlen = self.CalcLength(v, space)
 
         dot = self.CalcDot(u, v, space) / ulen / vlen
         if np.isclose(np.abs(dot), 1.0):
             dot = np.sign(dot)
-        angle = np.arccos(dot)
 
-        return angle
+        return np.arccos(dot)
 
-    ''' calculate cross product between two vectors in any space.
 
-    cross product of two vectors in direct space is a vector in
-    reciprocal space
-
-    cross product of two vectors in reciprocal space is a vector in
-    direct space
-
-    the outspace specifies if a conversion needs to be made
-
-     @NOTE: iv is the switch (0/1) which will either turn division
-     by volume of the unit cell on or off.'''
 
     def CalcCross(self, p, q, inspace, outspace, vol_divide=False):
-        iv = 0
-        if vol_divide:
-            vol = self.vol
-        else:
-            vol = 1.0
+        ''' Calculate cross product between two vectors in any space.
+
+            Cross product of two vectors in direct space is a vector in
+            reciprocal space. The cross product of two vectors in reciprocal
+            space is a vector in direct space. The outspace specifies if a
+            conversion needs to be made.
+        '''
+        vol = self.vol if vol_divide else 1.0
 
         pxq = np.array(
             [
@@ -341,10 +301,8 @@ class unitcell:
         )
 
         if inspace == 'd':
-            '''
-            cross product vector is in reciprocal space
-            and can be converted to direct or cartesian space
-            '''
+            # cross product vector is in reciprocal space
+            # and can be converted to direct or cartesian space
             pxq *= vol
 
             if outspace == 'r':
@@ -393,7 +351,7 @@ class unitcell:
                 )
 
         else:
-            raise ValueError('inspace is unidentified')
+            raise ValueError(f'Inspace {inspace} is invalid, must be d, r, or c.')
 
         return pxq
 
@@ -1885,14 +1843,12 @@ supergroup_10 = 'td'
 supergroup_11 = 'oh'
 
 
-def _sgrange(min, max):
-    return tuple(range(min, max + 1))  # inclusive range
+def _sgrange(minimum, maximum):
+    return tuple(range(minimum, maximum + 1))
 
 
-'''
-11/20/2020 SS added supergroup to the list which is used
-for coloring the fundamental zone IPF
-'''
+# 11/20/2020 SS added supergroup to the list which is used
+# for coloring the fundamental zone IPF
 _pgDict = {
     _sgrange(1, 1): ('c1', laue_1, supergroup_1, supergroup_00),  # Triclinic
     _sgrange(2, 2): ('ci', laue_1, supergroup_00, supergroup_00),  # laue 1
@@ -2042,13 +1998,12 @@ type9.remove((0, 2))
 type9.remove((2, 2))
 type9.remove((5, 5))
 
-'''
-these lambda functions take care of the equality constrains in the
-matrices. if there are no equality constraints, then the identity
-function is used
-C22 = C11, C23 = C13, C24 = −C14,
+
+# these lambda functions take care of the equality constrains in the
+# matrices. if there are no equality constraints, then the identity
+# function is used
+# C22 = C11, C23 = C13, C24 = −C14,
 # C25 = −C15, C46 = −C15, C55 = C44, C56 = C14, C66 = (C11 − C12)/2
-'''
 
 
 def identity(x):
