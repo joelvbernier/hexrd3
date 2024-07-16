@@ -203,38 +203,28 @@ class unitcell:
         ''' Transform between any crystal space to any other space. Choices are
             'd' (direct), 'r' (reciprocal) and 'c' (cartesian)
         '''
-        if inspace == 'd':
-            if outspace == 'r':
-                v_out = np.dot(v_in, self.dmt)
-            elif outspace == 'c':
-                v_out = np.dot(self.dsm, v_in)
-            else:
-                raise ValueError(
-                    'inspace in ' 'd' ' but outspace can' 't be identified'
-                )
+        if inspace not in ['d', 'r', 'c']:
+            raise ValueError(f'inspace: `{inspace }` not allowed. Must be d, r, or c')
+        if outspace not in ['d', 'r', 'c']:
+            raise ValueError(f'outspace: `{outspace}` not allowed. Must be d, r, or c')
 
-        elif inspace == 'r':
-            if outspace == 'd':
-                v_out = np.dot(v_in, self.rmt)
-            elif outspace == 'c':
-                v_out = np.dot(self.rsm, v_in)
-            else:
-                raise ValueError(
-                    'inspace in ' 'r' ' but outspace can' 't be identified'
-                )
+        if inspace == outspace:
+            return v_in
 
-        elif inspace == 'c':
-            if outspace == 'r':
-                v_out = np.dot(v_in, self.rsm)
-            elif outspace == 'd':
-                v_out = np.dot(v_in, self.dsm)
-            else:
-                raise ValueError(
-                    'inspace in ' 'c' ' but outspace can' 't be identified'
-                )
+        if inspace == 'd' and outspace == 'r':
+            v_out = np.dot(v_in, self.dmt)
+        elif inspace == 'd' and outspace == 'c':
+            v_out = np.dot(self.dsm, v_in)
 
-        else:
-            raise ValueError('incorrect inspace argument')
+        if inspace == 'r' and outspace == 'd':
+            v_out = np.dot(v_in, self.rmt)
+        elif inspace == 'r' and outspace == 'c':
+            v_out = np.dot(self.rsm, v_in)
+
+        if inspace == 'c' and outspace == 'r':
+            v_out = np.dot(v_in, self.rsm)
+        elif inspace == 'c' and outspace == 'd':
+            v_out = np.dot(v_in, self.dsm)
 
         return v_out
 
@@ -516,10 +506,12 @@ class unitcell:
         return asym_pos, numat
 
     def CalcStar(self, v, space, applyLaue=False):
+        ''' Calculates the symmetrically equivalent hkls (or uvws) for the
+            reciprocal (or direct) point group symmetry.
         '''
-        this function calculates the symmetrically equivalent hkls (or uvws)
-        for the reciprocal (or direct) point group symmetry.
-        '''
+        if space not in ['d', 'r', 'c']:
+            raise ValueError(f'space: `{space}` is not valid. Must be d, r, or c')
+
         if space == 'd':
             mat = self.dmt.astype(np.float64)
             if applyLaue:
@@ -538,16 +530,12 @@ class unitcell:
                 sym = self.SYM_PG_c_laue.astype(np.float64)
             else:
                 sym = self.SYM_PG_c.astype(np.float64)
-        else:
-            raise ValueError('CalcStar: unrecognized space.')
 
-        vv = np.array(v).astype(np.float64)
-        return _calcstar(vv, sym, mat)
+        return _calcstar(np.array(v).astype(np.float64), sym, mat)
 
     def CalcPositions(self):
-        '''
-        calculate the asymmetric positions in the fundamental unitcell
-        used for structure factor calculations
+        ''' Calculate the asymmetric positions in the fundamental unitcell
+            used for structure factor calculations
         '''
         numat = []
         asym_pos = []
@@ -653,12 +641,10 @@ class unitcell:
         self.calc_absorption_length()
 
     def CalcDensity(self):
+        ''' Calculate density, average atomic weight, and average atomic number
         '''
-        calculate density, average atomic weight (avA)
-        and average atomic number(avZ)
-        '''
-        self.avA = 0.0
-        self.avZ = 0.0
+        self.avA = 0.0 # average atomic weight
+        self.avZ = 0.0 # average atomic number
 
         for atom_type, numat, occ in zip(self.atom_type, self.numat, self.atom_pos):
             ''' atype is atom type i.e. atomic number
@@ -692,35 +678,33 @@ class unitcell:
             / self.CalcLength(np.array([self.ih, 0, 0], dtype=np.float64), 'r')
             > self.dmin
         ):
-            self.ih = self.ih + 1
+            self.ih += 1
 
         while (
             1.0
             / self.CalcLength(np.array([0, self.ik, 0], dtype=np.float64), 'r')
             > self.dmin
         ):
-            self.ik = self.ik + 1
+            self.ik += 1
 
         while (
             1.0
             / self.CalcLength(np.array([0, 0, self.il], dtype=np.float64), 'r')
             > self.dmin
         ):
-            self.il = self.il + 1
+            self.il += 1
 
     def InitializeInterpTable(self):
-
         f_anomalous_data = []
         self.pe_cs = {}
         data = importlib.resources.open_binary(hexrd.resources, 'Anomalous.h5')
         with h5py.File(data, 'r') as fid:
             for i in range(0, self.atom_ntype):
+                atomic_number = self.atom_type[i]
+                elem = constants.ptableinverse[atomic_number]
 
-                Z = self.atom_type[i]
-                elem = constants.ptableinverse[Z]
-
-                if Z <= 92:
-                    gid = fid.get('/' + elem)
+                if atomic_number <= 92:
+                    gid = fid.get(f'/{elem}')
                     data = np.array(gid.get('data'))
                     self.pe_cs[elem] = interp1d(
                         data[:, WAV_ID], data[:, MU_ID] + data[:, COH_INCOH_ID]
@@ -729,14 +713,19 @@ class unitcell:
                     f_anomalous_data.append(data)
                 else:
                     wav = np.linspace(1.16e2, 2.86399992e-03, 189)
-                    zs = np.ones_like(wav) * Z
+                    zs = np.ones_like(wav) * atomic_number
                     zrs = np.zeros_like(wav)
                     data_zs = np.vstack((wav, zs, zrs)).T
                     self.pe_cs[elem] = interp1d(wav, zrs)
                     f_anomalous_data.append(data_zs)
 
-        n = max([x.shape[0] for x in f_anomalous_data])
-        self.f_anomalous_data = np.zeros([self.atom_ntype, n, 3])
+        self.f_anomalous_data = np.zeros(
+            [
+                self.atom_ntype,
+                max([x.shape[0] for x in f_anomalous_data]),
+                3
+            ]
+        )
         self.f_anomalous_data_sizes = np.zeros(
             [
                 self.atom_ntype,
@@ -746,14 +735,13 @@ class unitcell:
 
         for i in range(self.atom_ntype):
             nd = f_anomalous_data[i].shape[0]
-            self.f_anomalous_data_sizes[i] = nd
+            self.f_anomalous_data_sizes[i] = f_anomalous_data[i].shape[0]
             self.f_anomalous_data[i, :nd, :] = f_anomalous_data[i]
 
     def CalcAnomalous(self):
-
         self.f_anam = {}
-        for i in range(self.atom_ntype):
 
+        for i in range(self.atom_ntype):
             Z = self.atom_type[i]
             elem = constants.ptableinverse[Z]
             f1 = self.f1[elem](self.wavelength)
@@ -763,20 +751,25 @@ class unitcell:
             self.f_anam[elem] = complex(f1 + frel - Z, f2)
 
     def CalcXRFormFactor(self, Z, charge, s):
-        '''
-        we are using the following form factors for x-aray scattering:
-        1. coherent x-ray scattering, f0 tabulated in Acta Cryst. (1995). A51,416-431
-        2. Anomalous x-ray scattering (complex (f'+if")) tabulated in J. Phys. Chem. Ref. Data, 24, 71 (1995)
-        and J. Phys. Chem. Ref. Data, 29, 597 (2000).
-        3. Thompson nuclear scattering, fNT tabulated in Phys. Lett. B, 69, 281 (1977).
+        ''' Hexrd uses the following form factors for x-ray scattering:
 
-        the anomalous scattering is a complex number (f' + if"), where the two terms are given by
-        f' = f1 + frel - Z
-        f" = f2
+            1. coherent x-ray scattering, f0 tabulated in Acta Cryst. (1995).
+                A51,416-431
+            2. Anomalous x-ray scattering (complex (f'+if")) tabulated in
+                J. Phys. Chem. Ref. Data, 24, 71 (1995)
+                and J. Phys. Chem. Ref. Data, 29, 597 (2000).
+            3. Thompson nuclear scattering, fNT tabulated in Phys. Lett. B,
+                69, 281 (1977).
 
-        f1 and f2 have been tabulated as a function of energy in Anomalous.h5 in hexrd folder
+            Anomalous scattering is a complex number (f' + if"), where the
+            two terms are given by:
+            f' = f1 + frel - Z
+            f" = f2
 
-        overall f = (f0 + f' + if" +fNT)
+            f1 and f2 have been tabulated as a function of energy in
+            Anomalous.h5 in hexrd folder
+
+            overall f = (f0 + f' + if" +fNT)
         '''
         elem = constants.ptableinverse[Z]
         if charge == '0':
