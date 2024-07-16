@@ -281,7 +281,6 @@ class unitcell:
         return np.arccos(dot)
 
 
-
     def CalcCross(self, p, q, inspace, outspace, vol_divide=False):
         ''' Calculate cross product between two vectors in any space.
 
@@ -290,6 +289,11 @@ class unitcell:
             space is a vector in direct space. The outspace specifies if a
             conversion needs to be made.
         '''
+        if inspace not in ['d', 'r', 'c']:
+            raise ValueError(f'Inspace {inspace} is invalid, must be d, r, or c.')
+        if outspace not in ['d', 'r', 'c']:
+            raise ValueError(f'Outspace {outspace} is invalid, must be d, r, or c.')
+
         vol = self.vol if vol_divide else 1.0
 
         pxq = np.array(
@@ -301,57 +305,26 @@ class unitcell:
         )
 
         if inspace == 'd':
-            # cross product vector is in reciprocal space
-            # and can be converted to direct or cartesian space
+            # cross product vector is in reciprocal space and can be converted
+            # to direct or cartesian space
             pxq *= vol
 
-            if outspace == 'r':
-                pass
-            elif outspace == 'd':
-                pxq = self.TransSpace(pxq, 'r', 'd')
-            elif outspace == 'c':
-                pxq = self.TransSpace(pxq, 'r', 'c')
-            else:
-                raise ValueError(
-                    'inspace is ' 'd' ' but outspace is unidentified'
-                )
+            if outspace in ['d', 'c']:
+                pxq = self.TransSpace(pxq, 'r', outspace)
 
         elif inspace == 'r':
-            '''
-            cross product vector is in direct space and
-            can be converted to any other space
-            '''
+            # cross product vector is in direct space and can be converted to
+            # any other space
             pxq /= vol
-            if outspace == 'r':
-                pxq = self.TransSpace(pxq, 'd', 'r')
-            elif outspace == 'd':
-                pass
-            elif outspace == 'c':
-                pxq = self.TransSpace(pxq, 'd', 'c')
-            else:
-                raise ValueError(
-                    'inspace is ' 'r' ' but outspace is unidentified'
-                )
+
+            if outspace in ['r', 'c']:
+                pxq = self.TransSpace(pxq, 'd', outspace)
 
         elif inspace == 'c':
-            '''
-            cross product is already in cartesian space so no
-            volume factor is involved. can be converted to any
-            other space too
-            '''
-            if outspace == 'r':
-                pxq = self.TransSpace(pxq, 'c', 'r')
-            elif outspace == 'd':
-                pxq = self.TransSpace(pxq, 'c', 'd')
-            elif outspace == 'c':
-                pass
-            else:
-                raise ValueError(
-                    'inspace is ' 'c' ' but outspace is unidentified'
-                )
-
-        else:
-            raise ValueError(f'Inspace {inspace} is invalid, must be d, r, or c.')
+            # cross product is already in cartesian space so no volume factor is
+            # involved. can be converted to any other space too
+            if outspace in ['r', 'd']:
+                pxq = self.TransSpace(pxq, 'c', outspace)
 
         return pxq
 
@@ -687,20 +660,14 @@ class unitcell:
         self.avA = 0.0
         self.avZ = 0.0
 
-        for i in range(self.atom_ntype):
+        for atom_type, numat, occ in zip(self.atom_type, self.numat, self.atom_pos):
+            ''' atype is atom type i.e. atomic number
+                numat is the number of atoms of atype
+                atom_pos(i,3) has the occupation factor
             '''
-            atype is atom type i.e. atomic number
-            numat is the number of atoms of atype
-            atom_pos(i,3) has the occupation factor
-            '''
-            atype = self.atom_type[i]
-            numat = self.numat[i]
-            occ = self.atom_pos[i, 3]
-
             # -1 due to 0 indexing in python
-            self.avA += numat * constants.atom_weights[atype - 1] * occ
-
-            self.avZ += numat * atype
+            self.avA += numat * constants.atom_weights[atom_type - 1] * occ[3]
+            self.avZ += numat * atom_type
 
         self.density = self.avA / (self.vol * 1.0e-21 * constants.cAvogadro)
 
@@ -709,19 +676,15 @@ class unitcell:
         self.avA /= av_natom
         self.avZ /= np.sum(self.numat)
 
-    ''' calculate the maximum index of diffraction vector along
-        each of the three reciprocal
-        basis vectors '''
-
     def init_max_g_index(self):
-        """
-        added 03/17/2021 SS
-        """
         self.ih = 1
         self.ik = 1
         self.il = 1
 
     def CalcMaxGIndex(self):
+        ''' calculate the maximum index of diffraction vector along each of the
+            three reciprocal basis vectors
+        '''
         self.init_max_g_index()
 
         while (
