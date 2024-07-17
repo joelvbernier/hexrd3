@@ -99,12 +99,11 @@ class unitcell:
         self.tinit = self._tstop - self._tstart
 
     def GetPgLg(self):
-        ''' simple subroutine to get point and laue groups to maintain
-            consistency for planedata initialization in the materials class
+        '''simple subroutine to get point and laue groups to maintain
+        consistency for planedata initialization in the materials class
         '''
-        for key in _pgDict.keys():
+        for key, pglg in _pgDict.items():
             if self.sgnum in key:
-                pglg = _pgDict[key]
                 self._pointGroup = pglg[0]
                 self._laueGroup = pglg[1]
                 self._supergroup = pglg[2]
@@ -122,13 +121,13 @@ class unitcell:
 
     def calcBetaij(self):
         self.betaij = np.zeros([3, 3, self.atom_ntype])
-        for i in range(self.U.shape[0]):
-            U = self.U[i, :]
-            self.betaij[:, :, i] = np.array(
+        for index in range(self.U.shape[0]):
+            U = self.U[index, :]
+            self.betaij[:, :, index] = np.array(
                 [[U[0], U[3], U[4]], [U[3], U[1], U[5]], [U[4], U[5], U[2]]]
             )
 
-            self.betaij[:, :, i] *= 2.0 * np.pi**2 * self._aij
+            self.betaij[:, :, index] *= 2.0 * np.pi**2 * self._aij
 
     def calcmatrices(self):
         a = self.a
@@ -198,15 +197,21 @@ class unitcell:
             ]
         )
 
-
     def TransSpace(self, v_in, inspace, outspace):
-        ''' Transform between any crystal space to any other space. Choices are
-            'd' (direct), 'r' (reciprocal) and 'c' (cartesian)
+        ''' Transform between any crystal space to any other space.
+            Choices are:
+                'd' (direct)
+                'r' (reciprocal)
+                'c' (cartesian)
         '''
         if inspace not in ['d', 'r', 'c']:
-            raise ValueError(f'inspace: `{inspace }` not allowed. Must be d, r, or c')
+            raise ValueError(
+                f'inspace: `{inspace }` not allowed. Must be d, r, or c'
+            )
         if outspace not in ['d', 'r', 'c']:
-            raise ValueError(f'outspace: `{outspace}` not allowed. Must be d, r, or c')
+            raise ValueError(
+                f'outspace: `{outspace}` not allowed. Must be d, r, or c'
+            )
 
         if inspace == outspace:
             return v_in
@@ -228,17 +233,18 @@ class unitcell:
 
         return v_out
 
-
-    def CalcDot(self, u, v, space):
-        ''' Calculate dot product of two vectors in any space 'd' 'r' or 'c' '''
+    def CalcDot(self, u, v, space: str):
+        '''Calculate dot product of two vectors in any space 'd' 'r' or 'c' '''
         if space == 'd':
             return np.dot(u, np.dot(self.dmt, v))
-        elif space == 'r':
-            return np.dot(u, np.dot(self.rmt, v))
-        elif space == 'c':
-            return np.dot(u, v)
-        raise ValueError(f'Space {space} not recognized. Must be d, r, or c.')
 
+        if space == 'r':
+            return np.dot(u, np.dot(self.rmt, v))
+
+        if space == 'c':
+            return np.dot(u, v)
+
+        raise ValueError(f'Space {space} not recognized. Must be d, r, or c.')
 
     def CalcLength(self, u, space):
         if space == 'd':
@@ -248,19 +254,16 @@ class unitcell:
         elif space == 'c':
             mat = np.eye(3)
         else:
-            raise ValueError('incorrect space argument')
+            raise ValueError(f'Invalid `space` argument: {space}')
 
-        uu = np.array(u).astype(np.float64)
-        return _calclength(uu, mat)
-
+        return _calclength(np.array(u).astype(np.float64), mat)
 
     def NormVec(self, u, space):
-        ''' normalize vector in any space 'd' 'r' or 'c' '''
+        ''' Normalize a vector in any space 'd' 'r' or 'c' '''
         return u / self.CalcLength(u, space)
 
-
     def CalcAngle(self, u, v, space):
-        ''' calculate angle between two vectors in any space'''
+        ''' Calculate angle between two vectors in any space. '''
         ulen = self.CalcLength(u, space)
         vlen = self.CalcLength(v, space)
 
@@ -269,7 +272,6 @@ class unitcell:
             dot = np.sign(dot)
 
         return np.arccos(dot)
-
 
     def CalcCross(self, p, q, inspace, outspace, vol_divide=False):
         ''' Calculate cross product between two vectors in any space.
@@ -280,9 +282,13 @@ class unitcell:
             conversion needs to be made.
         '''
         if inspace not in ['d', 'r', 'c']:
-            raise ValueError(f'Inspace {inspace} is invalid, must be d, r, or c.')
+            raise ValueError(
+                f'Inspace {inspace} is invalid, must be d, r, or c.'
+            )
         if outspace not in ['d', 'r', 'c']:
-            raise ValueError(f'Outspace {outspace} is invalid, must be d, r, or c.')
+            raise ValueError(
+                f'Outspace {outspace} is invalid, must be d, r, or c.'
+            )
 
         vol = self.vol if vol_divide else 1.0
 
@@ -319,21 +325,20 @@ class unitcell:
         return pxq
 
     def GenerateRecipPGSym(self):
-
         self.SYM_PG_r = self.SYM_PG_d[0, :, :]
         self.SYM_PG_r = np.broadcast_to(self.SYM_PG_r, [1, 3, 3])
 
         self.SYM_PG_r_laue = self.SYM_PG_d[0, :, :]
         self.SYM_PG_r_laue = np.broadcast_to(self.SYM_PG_r_laue, [1, 3, 3])
 
-        for i in range(1, self.npgsym):
-            g = self.SYM_PG_d[i, :, :]
+        for index in range(1, self.npgsym):
+            g = self.SYM_PG_d[index, :, :]
             g = np.dot(self.dmt, np.dot(g, self.rmt))
             g = np.round(np.broadcast_to(g, [1, 3, 3]))
             self.SYM_PG_r = np.concatenate((self.SYM_PG_r, g))
 
-        for i in range(1, self.SYM_PG_d_laue.shape[0]):
-            g = self.SYM_PG_d_laue[i, :, :]
+        for index in range(1, self.SYM_PG_d_laue.shape[0]):
+            g = self.SYM_PG_d_laue[index, :, :]
             g = np.dot(self.dmt, np.dot(g, self.rmt))
             g = np.round(np.broadcast_to(g, [1, 3, 3]))
             self.SYM_PG_r_laue = np.concatenate((self.SYM_PG_r_laue, g))
@@ -342,10 +347,9 @@ class unitcell:
         self.SYM_PG_r_laue = self.SYM_PG_r_laue.astype(np.int32)
 
     def GenerateCartesianPGSym(self):
-        '''
-        use the direct point group symmetries to generate the
-        symmetry operations in the cartesian frame. this is used
-        to reduce directions to the standard stereographi tringle
+        ''' Use the direct point group symmetries to generate the symmetry
+            operations in the cartesian frame. this is used to reduce directions
+            to the standard stereographic tringle.
         '''
         self.SYM_PG_c = []
         self.SYM_PG_c_laue = []
@@ -366,15 +370,9 @@ class unitcell:
             self.SYM_PG_c_laue = np.array(self.SYM_PG_c_laue)
             self.SYM_PG_c_laue[np.abs(self.SYM_PG_c_laue) < eps] = 0.0
 
-        '''
-        use the point group symmetry of the supergroup
-        to generate the equivalent operations in the
-        cartesian reference frame
-
-        SS 11/23/2020 added supergroup symmetry operations
-        SS 11/24/2020 fix monoclinic groups separately since
-        the supergroup for monoclinic is orthorhombic
-        '''
+        # use the point group symmetry of the supergroup
+        # to generate the equivalent operations in the
+        # cartesian reference frame
         supergroup = self._supergroup
         sym_supergroup = symmetry.GeneratePGSYM(supergroup)
 
@@ -382,16 +380,13 @@ class unitcell:
         sym_supergroup_laue = symmetry.GeneratePGSYM(supergroup_laue)
 
         if self.latticeType == 'monoclinic' or self.latticeType == 'triclinic':
-            '''
-            for monoclinic groups c2 and c2h, the supergroups are
-            orthorhombic, so no need to convert from direct to
-            cartesian as they are identical
-            '''
+            # for monoclinic groups c2 and c2h, the supergroups are
+            # orthorhombic, so no need to convert from direct to
+            # cartesian as they are identical
             self.SYM_PG_supergroup = sym_supergroup
             self.SYM_PG_supergroup_laue = sym_supergroup_laue
 
         else:
-
             self.SYM_PG_supergroup = []
             self.SYM_PG_supergroup_laue = []
 
@@ -413,72 +408,56 @@ class unitcell:
             np.abs(self.SYM_PG_supergroup_laue) < eps
         ] = 0.0
 
-        '''
-        the standard setting for the monoclinic system has the b-axis aligned
-        with the 2-fold axis. this needs to be accounted for when reduction to
-        the standard stereographic triangle is performed. the siplest way is to
-        rotate all symmetry elements by 90 about the x-axis
+        # the standard setting for the monoclinic system has the b-axis aligned
+        # with the 2-fold axis. this needs to be accounted for when reduction to
+        # the standard stereographic triangle is performed. the siplest way is to
+        # rotate all symmetry elements by 90 about the x-axis
 
-        the supergroups for the monoclinic groups are orthorhombic so they need
-        not be rotated as they have the c* axis already aligned with the z-axis
-        SS 12/10/2020
-        '''
+        # the supergroups for the monoclinic groups are orthorhombic so they need
+        # not be rotated as they have the c* axis already aligned with the z-axis
+        # SS 12/10/2020
+        om = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])
         if self.latticeType == 'monoclinic':
+            for index, sub in enumerate(self.SYM_PG_c):
+                self.SYM_PG_c[index, :, :] = np.dot(om, np.dot(sub, om.T))
 
-            om = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])
+            for index, sub in enumerate(self.SYM_PG_c_laue):
+                self.SYM_PG_c_laue[index, :, :] = np.dot(om, np.dot(sub, om.T))
 
-            for i, s in enumerate(self.SYM_PG_c):
-                ss = np.dot(om, np.dot(s, om.T))
-                self.SYM_PG_c[i, :, :] = ss
-
-            for i, s in enumerate(self.SYM_PG_c_laue):
-                ss = np.dot(om, np.dot(s, om.T))
-                self.SYM_PG_c_laue[i, :, :] = ss
-        '''
-        for the triclinic group c1, the supergroups are the monoclinic group m
-        therefore we need to rotate the mirror to be perpendicular to the z-axis
-        same shouldn't be done for the group ci, since the supergroup is just the
-        triclinic group c1!!
-        SS 12/10/2020
-        '''
+        # for the triclinic group c1, the supergroups are the monoclinic group m
+        # therefore we need to rotate the mirror to be perpendicular to the z-axis
+        # same shouldn't be done for the group ci, since the supergroup is just the
+        # triclinic group c1!!
         if self._pointGroup == 'c1':
-            om = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])
+            for index, sub in enumerate(self.SYM_PG_supergroup):
+                self.SYM_PG_supergroup[index, :, :] = np.dot(
+                    om, np.dot(sub, om.T)
+                )
 
-            for i, s in enumerate(self.SYM_PG_supergroup):
-                ss = np.dot(om, np.dot(s, om.T))
-                self.SYM_PG_supergroup[i, :, :] = ss
-
-            for i, s in enumerate(self.SYM_PG_supergroup_laue):
-                ss = np.dot(om, np.dot(s, om.T))
-                self.SYM_PG_supergroup_laue[i, :, :] = ss
+            for index, sub in enumerate(self.SYM_PG_supergroup_laue):
+                self.SYM_PG_supergroup_laue[index, :, :] = np.dot(
+                    om, np.dot(sub, om.T)
+                )
 
     def CalcOrbit(self, v, reduceToUC=True):
-        """
-        @date 03/04/2021 SS 1.0 original
+        """ Calculate the equivalent position for the space group symmetry. This
+            function will replace the code in the CalcPositions subroutine.
 
-        @details calculate the equivalent position for the
-        space group symmetry. this function will replace the
-        code in the CalcPositions subroutine.
-
-        @params v is the factional coordinates in direct space
-                reduceToUC reduces the position to the
+            @param `v`: Factional coordinates in direct space
+            @param `reduceToUC`: Whether to reduce the position to the
                 fundamental fractional unit cell (0-1)
         """
-
-        asym_pos = []
-        n = 1
         if v.shape[0] != 3:
             raise RuntimeError("fractional coordinate in not 3-d")
-        r = v
-        # using wigner-sietz notation
-        r = np.hstack((r, 1.0))
 
+        # using wigner-sietz notation
+        r = np.hstack((v, 1.0))
         asym_pos = np.broadcast_to(r[0:3], [1, 3])
+        numat = 1
 
         for symmat in self.SYM_SG:
-            # get new position
             rnew = np.dot(symmat, r)
-            rr = rnew[0:3]
+            rr = rnew[:3]
 
             if reduceToUC:
                 # reduce to fundamental unitcell with fractional
@@ -488,29 +467,25 @@ class unitcell:
                 rr[np.abs(rr) < 1.0e-6] = 0.0
 
             # check if this is new
-            isnew = True
-            for j in range(n):
-                v = rr - asym_pos[j]
-                dist = self.CalcLength(v, 'd')
+            for index in range(numat):
+                dist = self.CalcLength(rr - asym_pos[index], 'd')
                 if dist < 1e-3:
-                    isnew = False
                     break
-
-            # if its new add this to the list
-            if isnew:
+            else:
+                # if it's new, add this to the list
                 asym_pos = np.vstack((asym_pos, rr))
-                n += 1
-
-        numat = n
+                numat += 1
 
         return asym_pos, numat
 
     def CalcStar(self, v, space, applyLaue=False):
-        ''' Calculates the symmetrically equivalent hkls (or uvws) for the
+        ''' Calculate the symmetrically equivalent hkls (or uvws) for the
             reciprocal (or direct) point group symmetry.
         '''
         if space not in ['d', 'r', 'c']:
-            raise ValueError(f'space: `{space}` is not valid. Must be d, r, or c')
+            raise ValueError(
+                f'space: `{space}` is not valid. Must be d, r, or c'
+            )
 
         if space == 'd':
             mat = self.dmt.astype(np.float64)
@@ -534,15 +509,14 @@ class unitcell:
         return _calcstar(np.array(v).astype(np.float64), sym, mat)
 
     def CalcPositions(self):
-        ''' Calculate the asymmetric positions in the fundamental unitcell
-            used for structure factor calculations
+        ''' Calculate the asymmetric positions in the fundamental unitcell used
+            for structure factor calculations.
         '''
         numat = []
         asym_pos = []
 
-        for i in range(self.atom_ntype):
-
-            v = self.atom_pos[i, 0:3]
+        for index in range(self.atom_ntype):
+            v = self.atom_pos[index, 0:3]
             apos, n = self.CalcOrbit(v)
 
             asym_pos.append(apos)
@@ -552,44 +526,32 @@ class unitcell:
         self.asym_pos = asym_pos
 
     def remove_duplicate_atoms(self, atom_pos=None, tol=1e-3):
+        """ Remove duplicate atoms from the atom_pos field such that no two
+            atoms are closer than the distance specified by "tol"
+
+            1. Get the star (or orbit) oe each point in atom_pos.
+            2. If any points in the orbits are within tol, then remove the
+                second point (the first point will be preserved by convention.)
+            3. Update the densities, interptables for structure factors, etc.
+
+            @param `tol`: tolerance of distance between points specified in Å
         """
-        @date 03/04/2021 SS 1.0 original
-
-        @details it was requested that a functionality be
-        added which can remove duplicate atoms from the
-        atom_pos field such that no two atoms are closer that
-        the distance specified by "tol" (lets assume its in A)
-        steps involved are as follows:
-        1. get the star (or orbit) oe each point in atom_pos
-        2. if any points in the orbits are within tol, then
-        remove the second point (the first point will be
-        preserved by convention)
-        3. update the densities, interptables for structure factors
-        etc.
-
-        @params tol tolerance of distance between points specified
-        in A
-        """
-
         if atom_pos is None:
             atom_pos = self.atom_pos
 
         atom_pos_fixed = []
         idx = []
-        """
-        go through the atom_pos and remove the atoms that are duplicate
-        """
-        for i in range(atom_pos.shape[0]):
-            pos = atom_pos[i, 0:3]
-            occ = atom_pos[i, 3]
-            if i == 0:
+
+        for index in range(atom_pos.shape[0]):
+            pos = atom_pos[index, 0:3]
+            occ = atom_pos[index, 3]
+            if index == 0:
                 atom_pos_fixed.append(np.hstack([pos, occ]))
-                idx.append(i)
+                idx.append(index)
                 v1, _ = self.CalcOrbit(pos)
 
-                for j in range(i + 1, atom_pos.shape[0]):
+                for j in range(index + 1, atom_pos.shape[0]):
                     isclose = False
-                    # atom_pos_fixed.append(np.hstack([pos, occ]))
                     pos = atom_pos[j, 0:3]
                     occ = atom_pos[j, 3]
                     v2, _ = self.CalcOrbit(pos)
@@ -599,7 +561,6 @@ class unitcell:
                         vv = vv - v1
 
                         for vvv in vv:
-
                             # check if distance less than tol
                             # the factor of 10 is for A --> nm
                             if self.CalcLength(vvv, 'd') < tol / 10.0:
@@ -614,51 +575,42 @@ class unitcell:
                         break
                     else:
                         atom_pos_fixed.append(np.hstack([pos, occ]))
-                        idx.append(i)
+                        idx.append(index)
 
         idx = np.array(idx)
         atom_pos_fixed = np.array(atom_pos_fixed)
         atom_type = self.atom_type[idx]
-        chargestates = [self.chargestates[i] for i in idx]
+        chargestates = [self.chargestates[index] for index in idx]
 
-        if self.aniU:
-            U = self.U[idx, :]
-        else:
-            U = self.U[idx]
-
+        self.U = self.U[idx, :] if self.aniU else self.U[idx]
         self.atom_type = atom_type
         self.chargestates = chargestates
         self.atom_pos = atom_pos_fixed
 
-        self.U = U
-        '''
-        initialize interpolation from table for anomalous scattering
-        '''
+        # initialize interpolation from table for anomalous scattering
         self.InitializeInterpTable()
-        # self.CalcAnomalous()
         self.CalcPositions()
         self.CalcDensity()
         self.calc_absorption_length()
 
-    def CalcDensity(self):
-        ''' Calculate density, average atomic weight, and average atomic number
+    def CalcDensity(self) -> None:
+        ''' Calculate density, average atomic weight, and average atomic number.
         '''
-        self.avA = 0.0 # average atomic weight
-        self.avZ = 0.0 # average atomic number
+        self.avA = 0.0  # average atomic weight
+        self.avZ = 0.0  # average atomic number
 
-        for atom_type, numat, occ in zip(self.atom_type, self.numat, self.atom_pos):
-            ''' atype is atom type i.e. atomic number
-                numat is the number of atoms of atype
-                atom_pos(i,3) has the occupation factor
-            '''
-            # -1 due to 0 indexing in python
+        for atom_type, numat, occ in zip(
+            self.atom_type, self.numat, self.atom_pos
+        ):
+            # atype is atom type i.e. atomic number
+            # numat is the number of atoms of atype
+            # atom_pos(i,3) has the occupation factor
             self.avA += numat * constants.atom_weights[atom_type - 1] * occ[3]
             self.avZ += numat * atom_type
 
-        self.density = self.avA / (self.vol * 1.0e-21 * constants.cAvogadro)
-
         av_natom = np.dot(self.numat, self.atom_pos[:, 3])
 
+        self.density = self.avA / (self.vol * 1.0e-21 * constants.cAvogadro)
         self.avA /= av_natom
         self.avZ /= np.sum(self.numat)
 
@@ -668,8 +620,8 @@ class unitcell:
         self.il = 1
 
     def CalcMaxGIndex(self):
-        ''' calculate the maximum index of diffraction vector along each of the
-            three reciprocal basis vectors
+        ''' Calculate the maximum index of diffraction vector along each of the
+            three reciprocal basis vectors.
         '''
         self.init_max_g_index()
 
@@ -699,8 +651,8 @@ class unitcell:
         self.pe_cs = {}
         data = importlib.resources.open_binary(hexrd.resources, 'Anomalous.h5')
         with h5py.File(data, 'r') as fid:
-            for i in range(0, self.atom_ntype):
-                atomic_number = self.atom_type[i]
+            for index in range(self.atom_ntype):
+                atomic_number = self.atom_type[index]
                 elem = constants.ptableinverse[atomic_number]
 
                 if atomic_number <= 92:
@@ -720,11 +672,7 @@ class unitcell:
                     f_anomalous_data.append(data_zs)
 
         self.f_anomalous_data = np.zeros(
-            [
-                self.atom_ntype,
-                max([x.shape[0] for x in f_anomalous_data]),
-                3
-            ]
+            [self.atom_ntype, max([x.shape[0] for x in f_anomalous_data]), 3]
         )
         self.f_anomalous_data_sizes = np.zeros(
             [
@@ -733,25 +681,29 @@ class unitcell:
             dtype=np.int32,
         )
 
-        for i in range(self.atom_ntype):
-            nd = f_anomalous_data[i].shape[0]
-            self.f_anomalous_data_sizes[i] = f_anomalous_data[i].shape[0]
-            self.f_anomalous_data[i, :nd, :] = f_anomalous_data[i]
+        for index in range(self.atom_ntype):
+            nd = f_anomalous_data[index].shape[0]
+            self.f_anomalous_data_sizes[index] = f_anomalous_data[index].shape[
+                0
+            ]
+            self.f_anomalous_data[index, :nd, :] = f_anomalous_data[index]
 
     def CalcAnomalous(self):
         self.f_anam = {}
 
-        for i in range(self.atom_ntype):
-            Z = self.atom_type[i]
-            elem = constants.ptableinverse[Z]
+        for index in range(self.atom_ntype):
+            atomic_number = self.atom_type[index]
+            elem = constants.ptableinverse[atomic_number]
             f1 = self.f1[elem](self.wavelength)
             f2 = self.f2[elem](self.wavelength)
             frel = constants.frel[elem]
-            Z = constants.ptable[elem]
-            self.f_anam[elem] = complex(f1 + frel - Z, f2)
+            atomic_number = constants.ptable[elem]
+            self.f_anam[elem] = complex(f1 + frel - atomic_number, f2)
 
     def CalcXRFormFactor(self, Z, charge, s):
-        ''' Hexrd uses the following form factors for x-ray scattering:
+        ''' Calculate the XR Form Factor.
+
+            Hexrd uses the following form factors for x-ray scattering:
 
             1. coherent x-ray scattering, f0 tabulated in Acta Cryst. (1995).
                 A51,416-431
@@ -772,6 +724,7 @@ class unitcell:
             overall f = (f0 + f' + if" +fNT)
         '''
         elem = constants.ptableinverse[Z]
+
         if charge == '0':
             sfact = constants.scatfac[elem]
         else:
@@ -784,18 +737,16 @@ class unitcell:
         fNT = constants.fNT[elem]
         f_anomalous = self.f_anam[elem]
 
-        for i in range(5):
-            fe += sfact[i] * np.exp(-sfact[i + 6] * s)
+        for index in range(5):
+            fe += sfact[index] * np.exp(-sfact[index + 6] * s)
 
         return fe + fNT + f_anomalous
 
     def CalcXRSF(self, hkl):
         from hexrd.wppf.xtal import _calcxrsf
 
-        '''
-        the 1E-2 is to convert to A^-2
-        since the fitting is done in those units
-        '''
+        # the 1E-2 is to convert to A^-2
+        # since the fitting is done in those units
         fNT = np.zeros(
             [
                 self.atom_ntype,
@@ -817,14 +768,6 @@ class unitcell:
                 nref,
             ]
         )
-        w_int = 1.0
-
-        occ = self.atom_pos[:, 3]
-        aniU = self.aniU
-        if aniU:
-            betaij = self.betaij
-        else:
-            betaij = self.U
 
         self.asym_pos_arr = np.zeros([self.numat.max(), self.atom_ntype, 3])
         for index in range(self.atom_ntype):
@@ -834,24 +777,26 @@ class unitcell:
         self.numat = np.zeros(self.atom_ntype, dtype=np.int32)
         for index in range(self.atom_ntype):
             self.numat[index] = self.asym_pos[index].shape[0]
-            Z = self.atom_type[index]
-            elem = constants.ptableinverse[Z]
+            atomic_number = self.atom_type[index]
+            elem = constants.ptableinverse[atomic_number]
             scatfac[index, :] = constants.scatfac[elem]
-            if Z <= 92:
+            if atomic_number <= 92:
                 frel[index] = constants.frel[elem]
                 fNT[index] = constants.fNT[elem]
+
+        betaij = self.betaij if self.aniU else self.U
 
         _, sf_raw = _calcxrsf(
             hkl2d,
             nref,
             multiplicity,
-            w_int,
+            1.0,
             self.wavelength,
             self.rmt.astype(np.float64),
             self.atom_type,
             self.atom_ntype,
             betaij,
-            occ,
+            self.atom_pos[:, 3],
             self.asym_pos_arr,
             self.numat,
             scatfac,
@@ -863,14 +808,12 @@ class unitcell:
 
         return sf_raw
 
-
     def calc_unitcell_mass(self):
-        """ Molecular mass calculates the molar weight of the unit cell since
-            the unitcell can have multiple formular units, this might be greater
-            than the molecular weight.
+        """Molecular mass calculates the molar weight of the unit cell since
+        the unitcell can have multiple formular units, this might be greater
+        than the molecular weight.
         """
         return np.sum(constants.atom_weights[self.atom_type - 1] * self.numat)
-
 
     def calc_number_density(self):
         """ Calculate the number density in 1/micron^3
@@ -878,14 +821,19 @@ class unitcell:
 
             The 1e-12 factor converts from 1/cm^3 to 1/micron^3
         """
-        return 1e-12 * self.density * constants.cAvogadro / self.calc_unitcell_mass()
+        return (
+            1e-12
+            * self.density
+            * constants.cAvogadro
+            / self.calc_unitcell_mass()
+        )
 
     def calc_absorption_cross_sec(self):
-
         abs_cs_total = 0.0
+
         for index in range(self.atom_ntype):
-            Z = self.atom_type[index]
-            elem = constants.ptableinverse[Z]
+            atomic_number = self.atom_type[index]
+            elem = constants.ptableinverse[atomic_number]
             abs_cs_total += (
                 self.pe_cs[elem](self.wavelength)
                 * self.numat[index]
@@ -893,8 +841,7 @@ class unitcell:
             )
         return abs_cs_total
 
-
-    def calc_absorption_length(self):
+    def calc_absorption_length(self) -> None:
         """ Calculate the absorption coefficient which is calculated using the
             sum of photoeffect, compton and rayleigh cross ections. The pair and
             triplet production cross sections etc are not applicable in the
@@ -903,7 +850,7 @@ class unitcell:
             attenuation coeff = sigma_total * density
             attenuation_length = 1/attenuation_coeff
 
-            Returns units in microns.
+            Computes absorption length in microns.
         """
         # re = 2.8179403e-9 # in microns
         # N  = self.calc_number_density()
@@ -912,21 +859,17 @@ class unitcell:
         # the 1e4 factor converts wavelength from cm -> micron
         self.absorption_length = 1e4 / (abs_cs_total * self.density)
 
-
     def CalcBraggAngle(self, hkl):
-        """ Calculate bragg angle for a reflection. returns Nan if the
-            reflections is not possible for the voltage/wavelength
+        """Calculate bragg angle for a reflection. returns Nan if the
+        reflections is not possible for the voltage/wavelength
         """
         glen = self.CalcLength(hkl, 'r')
-        sth = self.wavelength * glen * 0.5
-        return np.arcsin(sth)
+        return np.arcsin(self.wavelength * glen * 0.5)
 
     def ChooseSymmetric(self, hkllist, InversionSymmetry=True):
-        '''
-        this function takes a list of hkl vectors and
-        picks out a subset of the list picking only one
-        of the symmetrically equivalent one. The convention
-        is to choose the hkl with the most positive components.
+        '''Takes a list of hkl vectors and picks out a subset of the list,
+        picking only one of the symmetrically equivalent ones. The
+        convention is to choose the hkl with the most positive components.
         '''
         mask = np.ones(hkllist.shape[0], dtype=bool)
         laue = InversionSymmetry
@@ -940,29 +883,21 @@ class unitcell:
                     mask[rid] = False
 
         hkl = hkllist[mask, :].astype(np.int32)
-
         hkl_max = []
 
         for g in hkl:
             geqv = self.CalcStar(g, 'r', applyLaue=laue)
             loc = np.argmax(np.sum(geqv, axis=1))
-            gmax = geqv[loc, :]
-            hkl_max.append(gmax)
+            hkl_max.append(geqv[loc, :])
 
         return np.array(hkl_max).astype(np.int32)
 
     def SortHKL(self, hkllist):
+        '''Sorts the hkllist by increasing |g| i.e. decreasing d-spacing. If
+        two vectors have the same length, then they are ordered with
+        increasing priority to l, k and h.
         '''
-        this function sorts the hkllist by increasing |g|
-        i.e. decreasing d-spacing. If two vectors are same
-        length, then they are ordered with increasing
-        priority to l, k and h
-        '''
-        glen = []
-        for g in hkllist:
-            glen.append(np.round(self.CalcLength(g, 'r'), 8))
-
-        # glen = np.atleast_2d(np.array(glen,dtype=float)).T
+        glen = [np.round(self.CalcLength(g, 'r'), 8) for g in hkllist]
         dtype = [
             ('glen', float),
             ('max', int),
@@ -982,12 +917,12 @@ class unitcell:
         return hkllist[isort, :]
 
     def getHKLs(self, dmin):
-        ''' Generates the symetrically unique set of hkls up to a given dmin.
-            dmin is in nm
+        '''Generates the symetrically unique set of hkls up to a given dmin.
+        dmin is in nm
 
-            Always have the centrosymmetric condition because of Friedels law
-            for xrays so only 4 of the 8 octants are sampled for unique hkls.
-            By convention we will ignore all l < 0
+        Always have the centrosymmetric condition because of Friedels law
+        for xrays so only 4 of the 8 octants are sampled for unique hkls.
+        By convention we will ignore all l < 0
         '''
         hmin = -self.ih - 1
         hmax = self.ih
@@ -1017,34 +952,28 @@ class unitcell:
                 if dspace >= dmin:
                     hkl_dsp.append(g)
 
-        '''
-        we now have a list of g vectors which are all within dmin range
-        plus the systematic absences due to lattice centering and glide
-        planes/screw axis has been taken care of
+        # we now have a list of g vectors which are all within dmin range
+        # plus the systematic absences due to lattice centering and glide
+        # planes/screw axis has been taken care of
 
-        the next order of business is to go through the list and only pick
-        out one of the symetrically equivalent hkls from the list.
-        '''
+        # the next order of business is to go through the list and only pick
+        # out one of the symetrically equivalent hkls from the list.
         hkl_dsp = np.array(hkl_dsp).astype(np.int32)
-        '''
-        the inversionsymmetry switch enforces the application of the inversion
-        symmetry regradless of whether the crystal has the symmetry or not
-        this is necessary in the case of xrays due to friedel's law
-        '''
+
+        # the inversionsymmetry switch enforces the application of the inversion
+        # symmetry regradless of whether the crystal has the symmetry or not
+        # this is necessary in the case of xrays due to friedel's law
         hkl = self.ChooseSymmetric(hkl_dsp, InversionSymmetry=True)
 
-        '''
-        finally sort in order of decreasing dspacing
-        '''
         self.hkls = self.SortHKL(hkl)
 
         return self.hkls
 
-    '''
-        set some properties for the unitcell class. only the lattice
-        parameters, space group and asymmetric positions can change,
-        but all the dependent parameters will be automatically updated
-    '''
+    ##################################################################
+    # Set some properties for the unitcell class. Only the lattice   #
+    # parameters, space group and asymmetric positions can change,   #
+    # but all the dependent parameters will be automatically updated #
+    ##################################################################
 
     def Required_lp(self, p):
         return _rqpDict[self.latticeType][1](p)
@@ -1052,61 +981,40 @@ class unitcell:
     def Required_C(self, C):
         return np.array([C[x] for x in _StiffnessDict[self._laueGroup][0]])
 
-    def MakeStiffnessMatrix(self, inp_Cvals):
-        if len(inp_Cvals) != len(_StiffnessDict[self._laueGroup][0]):
-            x = len(_StiffnessDict[self._laueGroup][0])
-            msg = (
-                f"number of constants entered is not correct."
-                f" need a total of {x} independent constants."
+    def MakeStiffnessMatrix(self, inp_Cvals) -> None:
+        if len(inp_Cvals) != (
+            num_consts := len(_StiffnessDict[self._laueGroup][0])
+        ):
+            raise IOError(
+                f"number of constants entered is not correct. Need a "
+                f"total of {num_consts} independent constants."
             )
-            raise IOError(msg)
 
         # initialize all zeros and fill the supplied values
-        C = np.zeros([6, 6])
+        self.stiffness = np.zeros([6, 6])
         for index, x in enumerate(_StiffnessDict[self._laueGroup][0]):
-            C[x] = inp_Cvals[index]
+            self.stiffness[x] = inp_Cvals[index]
 
         # enforce the equality constraints
-        C = _StiffnessDict[self._laueGroup][1](C)
+        self.stiffness = _StiffnessDict[self._laueGroup][1](self.stiffness)
 
         # finally fill the lower triangular matrix
         for row in range(6):
             for col in range(row):
-                C[row, col] = C[col, row]
+                self.stiffness[row, col] = self.stiffness[col, row]
 
-        self.stiffness = C
-        self.compliance = np.linalg.inv(C)
+        self.compliance = np.linalg.inv(self.stiffness)
 
     def inside_spheretriangle(self, conn, dir3, hemisphere, switch):
-        '''
-        check if direction is inside a spherical triangle
-        the logic used as follows:
-        if determinant of [A B x], [A x C] and [x B C] are
-        all same sign, then the sphere is inside the traingle
-        formed by A, B and C
+        ''' Check if direction is inside a spherical triangle.
 
-        returns a mask with inside as True and outside as False
+            If the determinants of [A B x], [A x C] and [x B C] all have the
+            same sign, then the sphere is inside the traingle formed by A, B and C
 
-        11/23/2020 SS switch is now a string specifying which
-        symmetry group to use for reducing directions
-        11/23/2020 SS catching cases when vertices are empty
+            returns a mask with inside as True and outside as False
         '''
-
-        '''
-        first get vertices of the triangles in the
-        '''
+        # first get vertices of the triangles
         vertex = self.sphere_sector.vertices[switch]
-        # if(switch == 'pg'):
-        #     vertex = self.sphere_sector.vertices
-
-        # elif(switch == 'laue'):
-        #     vertex = self.sphere_sector.vertices_laue
-
-        # elif(switch == 'super'):
-        #     vertex = self.sphere_sector.vertices_supergroup
-
-        # elif(switch == 'superlaue'):
-        #     vertex = self.sphere_sector.vertices_supergroup_laue
 
         A = np.atleast_2d(vertex[:, conn[0]]).T
         B = np.atleast_2d(vertex[:, conn[1]]).T
@@ -1114,16 +1022,14 @@ class unitcell:
 
         mask = []
         for x in dir3:
+            x = np.atleast_2d(x).T
+            d1 = np.linalg.det(np.hstack((A, B, x)))
+            d2 = np.linalg.det(np.hstack((A, x, C)))
+            d3 = np.linalg.det(np.hstack((x, B, C)))
 
-            x2 = np.atleast_2d(x).T
-            d1 = np.linalg.det(np.hstack((A, B, x2)))
-            d2 = np.linalg.det(np.hstack((A, x2, C)))
-            d3 = np.linalg.det(np.hstack((x2, B, C)))
-            '''
-            catching cases very close to FZ boundary when the
-            determinant can be very small positive or negative
-            number
-            '''
+            # catching cases very close to FZ boundary when the
+            # determinant can be very small positive or negative
+            # number
             if np.abs(d1) < eps:
                 d1 = 0.0
             if np.abs(d2) < eps:
@@ -1133,10 +1039,7 @@ class unitcell:
 
             ss = np.unique(np.sign([d1, d2, d3]))
             if hemisphere == 'upper':
-                if np.all(ss >= 0.0):
-                    mask.append(True)
-                else:
-                    mask.append(False)
+                mask.append(np.all(ss >= 0.0))
 
             elif hemisphere == 'both':
                 if len(ss) == 1:
@@ -1149,24 +1052,10 @@ class unitcell:
                 elif len(ss) == 3:
                     mask.append(False)
 
-        mask = np.array(mask)
-        return mask
-
+        return np.array(mask)
 
     def reduce_dirvector(self, dir3, switch='pg'):
-        ''' @AUTHOR Saransh Singh, Lawrence Livermore National Lab, saransh1@llnl.gov
-
-            @date 10/28/2020 SS 1.0 original
-                11/23/2020 SS 1.1 the laueswitch has been changed from a boolean
-                variable to a string input with threee possible values
-            @params dir3 : n x 3 array of directions to reduce
-                    switch switch to decide which symmetry group to use. one of four:
-                    (a) 'pg' use the cartesian point group symmetry
-                    (b) 'laue' use the laue symmetry
-                    (c) 'super' use the supergroup symmetry used in coloring
-                    (d) 'superlaue' use the supergroup of the laue group
-
-            @detail this subroutine takes a direction vector and uses the point group
+        ''' This subroutine takes a direction vector and uses the point group
             symmetry of the unitcell to reduce it to the fundamental stereographic
             triangle for that point group. this function is used in generating the IPF
             color legend for orientations. for now we are assuming dir3 is a nx3 array
@@ -1179,13 +1068,22 @@ class unitcell:
             is in the sample frame, so by default it is assumed to be in a
             orthonormal cartesian frame. this defines the normalization as
             just division by the L2 norm
+
+            @param `dir3`: n x 3 array of directions to reduce
+            @param `switch`: Which symmetry group to use:
+                - 'pg' use the cartesian point group symmetry
+                - 'laue' use the laue symmetry
+                - 'super' use the supergroup symmetry used in coloring
+                - 'superlaue' use the supergroup of the laue group
         '''
         idx = np.arange(dir3.shape[0], dtype=np.int32)
         dir3 = np.ascontiguousarray(np.atleast_2d(dir3))
         if dir3.ndim != 2:
             raise RuntimeError("reduce_dirvector: invalid shape of dir3 array")
 
-        if np.all(np.abs(np.linalg.norm(dir3, axis=1) - 1.0) < constants.sqrt_epsf):
+        if np.all(
+            np.abs(np.linalg.norm(dir3, axis=1) - 1.0) < constants.sqrt_epsf
+        ):
             dir3n = dir3
         else:
             if np.all(np.linalg.norm(dir3) > constants.sqrt_epsf):
@@ -1255,28 +1153,25 @@ class unitcell:
         return dir3_r
 
     def color_directions(self, dir3, laueswitch: bool):
-        '''
-        @AUTHOR  Saransh Singh, Lawrence Livermore National Lab, saransh1@llnl.gov
-        @DATE    11/12/2020 SS 1.0 original
-        @PARAM   dir3 is crystal direction obtained by multiplying inverse of
-        crystal orientation with reference direction
-                 laueswitch perform reducion based on lauegroup or the point group
+        ''' Makes the calls to the sphere_sector class which correctly color the
+            orientations for this crystal class.
 
-        @DETAIL  this is the routine which makes the calls to sphere_sector
-        class which correctly color the orientations for this crystal class. the
-        logic is as follows:
+            1. Reduce direction to fundamental zone of point group.
+            2. Reduce to fundamental zone of super group.
+            3. If both are same, then color (hsl) assigned by polar and azimuth.
+            4. If different, then barycenter lightness is replaced by 1-L
+                (equivalent to replacing barycenter to pi-theta).
 
-        1. reduce direction to fundamental zone of point group
-        2. reduce to fundamental zone of super group
-        3. If both are same, then color (hsl) assigned by polar and azimuth
-        4. If different, then barycenter lightness is replaced by 1-L (equivalent to
-           replaceing barycenter to pi-theta)
+            @param `dir3`: Crystal direction obtained by multiplying inverse of
+                crystal orientation with reference direction.
+            @param `laueswitch`: Perform reduction based on lauegroup or the
+                point group.
         '''
 
+        # this is the case where we color orientations based on the laue group
+        # of the crystal. this is always going to be the case with x-ray which
+        # introduces inversion symmetry. For other probes, this is not the case.
         if laueswitch:
-            # this is the case where we color orientations based on the laue group
-            # of the crystal. this is always going to be the case with x-ray which
-            # introduces inversion symmetry. For other probes, this is not the case.
             dir3_red = self.reduce_dirvector(dir3, switch='laue')
             dir3_red_supergroup = self.reduce_dirvector(
                 dir3, switch='superlaue'
@@ -1294,49 +1189,37 @@ class unitcell:
         return colorspace.hsl2rgb(hsl)
 
     def color_orientations(
-        self, rmats, ref_dir=np.array([0.0, 0.0, 1.0]), laueswitch=True
+        self, rmats, ref_dir=np.array([0.0, 0.0, 1.0]), laueswitch: bool = True
     ):
-        '''
-            @AUTHOR  Saransh Singh, Lawrence Livermore National Lab, saransh1@llnl.gov
-            @DATE    11/12/2020 SS 1.0 original
-            @PARAM   rmats rotation matrices of size nx3x3
-                    ref_dir reference direction of the sample frame along which all crystal
-                    directions are colored
-                    laueswitch should we use laue group for coloring or not
-            @DETAIL  this is a simple routine which takes orientations as rotations matrices
-            and a reference sample direction ([0 0 1] by default) and returns the directions in
-            the crystal reference frame. Note that the crystal orientations is defined as the the
-            orientation which takes the """SAMPLE""" reference frame TO the """CRYSTAL""" frame.
-            Since we are computing the conversion from crystal to sample, we will need to INVERT
-            these matrices. Thanksfully, this is just a transpose
+        ''' Takes orientations as rotations matrices and a reference sample
+        direction ([0 0 1] by default) and returns the directions in the
+        crystal reference frame. Note that the crystal orientations is
+        defined as the the orientation which takes the SAMPLE reference
+        frame to the CRYSTAL frame. Since we are computing the conversion
+        from crystal to sample, we will need to invert these matrices.
+
+        @param `rmats`: Rotation matrices of size nx3x3.
+        @param `ref_dir`: Reference direction of the sample frame along which
+            all crystal directions are colored.
+        @param `laueswitch`: Whether to use laue group for coloring.
         '''
         if rmats.ndim == 2:
             rmats = np.atleast_3d(rmats).T
         else:
-            assert (
-                rmats.ndim == 3
-            ), "rotations matrices need to \
-                                    be nx3x3. Please check size."
+            if rmats.ndim != 3:
+                raise ValueError("Rotation matrices need to be size nx3x3.")
 
         # obtain the direction vectors by simple matrix multiplication of transpose
         # of rotation matrix with the reference direction
-        dir3 = []
-        for r in rmats:
-            dir3.append(np.dot(r.T, ref_dir))
+        direction = np.array([np.dot(r.T, ref_dir) for r in rmats])
 
-        dir3 = np.array(dir3)
-        return self.color_directions(dir3, laueswitch)
+        return self.color_directions(np.array(direction), laueswitch)
 
-    def is_editable(self, lp_name):
-        """ @author Saransh Singh, Lawrence Livermore National Lab
-            @date 03/17/2021 SS 1.0 original
-            @details check if a certain field in the lattice parameter
-            is editable. this depends on the space group number or the
-            lattice class
+    def is_editable(self, lp_name) -> bool:
+        """Check if a field in the lattice parameter is editable. Depends on
+        the space group number or the lattice class.
         """
-
-        _lpnamelist = list(_lpname)
-        index = _lpnamelist.index(lp_name)
+        index = np.where(_lpname == lp_name)[0][0]
         editable_fields = _rqpDict[self.latticeType][0]
         return index in editable_fields
 
@@ -1351,12 +1234,12 @@ class unitcell:
         return lp_valunit
 
     def fill_correct_lp_vals(self, lp, val, lp_name):
-        index = list(_lpname).index(lp_name)
+        index = np.where(_lpname == lp_name)[0][0]
         lp[index] = val
         lp_red = [lp[i] for i in _rqpDict[self.latticeType][0]]
         lp = _rqpDict[self.latticeType][1](lp_red)
-        lp_valunit = self.convert_lp_to_valunits(lp)
-        return lp_valunit
+
+        return self.convert_lp_to_valunits(lp)
 
     @property
     def compliance(self):
@@ -1393,6 +1276,7 @@ class unitcell:
     def lparms_reduced(self):
         lp = self.lparms
         lp_red = [lp[i] for i in _rqpDict[self.latticeType][0]]
+
         return lp_red
 
     @property
@@ -1482,7 +1366,6 @@ class unitcell:
         if self._dmin == v:
             return
         self._dmin = v
-        # Update the Max G Index
         self.CalcMaxGIndex()
 
     @property
@@ -1523,7 +1406,7 @@ class unitcell:
     def sgnum(self, val):
         if not isinstance(val, int):
             raise ValueError('space group should be integer')
-        if not (1 <= val <= 230):
+        if not 1 <= val <= 230:
             raise ValueError('space group number should be between 1 and 230.')
 
         self._sym_sgnum = val
@@ -1548,12 +1431,8 @@ class unitcell:
         # used for structure factor calculations
         self.CalcPositions()
         self.GetPgLg()
-
-        # SS 11/10/2020 added cartesian PG sym for reducing directions
-        # to standard stereographic triangle
         self.GenerateCartesianPGSym()
 
-        # SS 11/11/2020 adding the sphere_sector class initialization here
         self.sphere_sector = sphere_sector.sector(
             self._pointGroup,
             self._laueGroup,
@@ -1577,21 +1456,13 @@ class unitcell:
 
     @atom_pos.setter
     def atom_pos(self, val):
-        """
-        SS 03/08/2021 fixing some issues with
-        updating asymmetric positions after
-        updating atominfo
-        fixing
-        """
         if hasattr(self, 'atom_type'):
             if self.atom_ntype != val.shape[0]:
-                msg = (
-                    f"incorrect number of atom positions."
-                    f" number of atom type = {self.atom_ntype} "
-                    f" and number of"
-                    f" atom positions = {val.shape[0]}."
+                raise ValueError(
+                    f"Incorrect number of atom positions. Number of atom type: "
+                    f"{self.atom_ntype} and number of atom positions: "
+                    f"{val.shape[0]}."
                 )
-                raise ValueError(msg)
 
         self._atom_pos = val
         # update only if its not the first time
@@ -1612,8 +1483,8 @@ class unitcell:
 
     @asym_pos.setter
     def asym_pos(self, val):
-        assert (
-            isinstance(val, list)
+        assert isinstance(
+            val, list
         ), 'input type to asymmetric positions should be list'
         self._asym_pos = val
 
@@ -1693,12 +1564,9 @@ laue_9 = 'd6h'
 laue_10 = 'th'
 laue_11 = 'oh'
 
-
-'''
-these supergroups are the three exceptions to the coloring scheme
-the point groups are not topological and can't have no discontinuities
-in the IPF coloring scheme. they are -1, -3 and -4 point groups.
-'''
+# these supergroups are the three exceptions to the coloring scheme
+# the point groups are not topological and can't have no discontinuities
+# in the IPF coloring scheme. they are -1, -3 and -4 point groups.
 supergroup_00 = 'c1'
 supergroup_01 = 'c4'
 supergroup_02 = 'c3'
@@ -1720,8 +1588,12 @@ def _sgrange(minimum, maximum):
     return tuple(range(minimum, maximum + 1))
 
 
-# 11/20/2020 SS added supergroup to the list which is used
-# for coloring the fundamental zone IPF
+# this dictionary has the mapping from laue group to number of elastic
+# constants needed in the voight 6x6 stiffness matrix. the compliance
+# matrix is just the inverse of the stiffness matrix
+# taken from International Tables for Crystallography Volume H
+# Powder diffraction
+# Edited by C. J. Gilmore, J. A. Kaduk and H. Schenk
 _pgDict = {
     _sgrange(1, 1): ('c1', laue_1, supergroup_1, supergroup_00),  # Triclinic
     _sgrange(2, 2): ('ci', laue_1, supergroup_00, supergroup_00),  # laue 1
@@ -1778,14 +1650,6 @@ _pgDict = {
     ),  # laue 11
 }
 
-'''
-this dictionary has the mapping from laue group to number of elastic
-constants needed in the voight 6x6 stiffness matrix. the compliance
-matrix is just the inverse of the stiffness matrix
-taken from International Tables for Crystallography Volume H
-Powder diffraction
-Edited by C. J. Gilmore, J. A. Kaduk and H. Schenk
-'''
 # independent components for the triclinic laue group
 type1 = []
 for i in range(6):
