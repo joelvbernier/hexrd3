@@ -42,49 +42,27 @@ elif 'Darwin' in platform.system():
 else:
     mp_context = mp.get_context("fork")
 
-# pi related
-pi = np.pi
-piby2 = 0.5 * pi
-piby3 = pi / 3.
-piby4 = 0.25 * pi
-piby6 = pi / 6.
-
-# misc radicals
-sqrt2 = np.sqrt(2.)
-sqrt3 = np.sqrt(3.)
-sqrt3by2 = 0.5 * sqrt3
-
-# fwhm
-sigma_to_fwhm = 2.*np.sqrt(2.*np.log(2.))
-fwhm_to_sigma = 1. / sigma_to_fwhm
 
 # tolerancing
-epsf = np.finfo(float).eps      # ~2.2e-16
-ten_epsf = 10 * epsf            # ~2.2e-15
-sqrt_epsf = np.sqrt(epsf)       # ~1.5e-8
+EPSF = np.finfo(float).eps      # ~2.2e-16
+TEN_EPSF = 10 * EPSF            # ~2.2e-15
+SQRT_EPSF = np.sqrt(EPSF)       # ~1.5e-8
 
 # for angles
-period_dict = {'degrees': 360.0, 'radians': 2*pi}
-angular_units = 'radians'  # module-level angle units
-d2r = pi / 180.
-r2d = 180. / pi
+PERIOD_DICT = {'degrees': 360.0, 'radians': 2*np.pi}
+ANGULAR_UNITS = 'radians'  # module-level angle units
 
 # identity arrays
-identity_3x3 = np.eye(3)  # (3, 3) identity
-identity_6x1 = np.r_[1., 1., 1., 0., 0., 0.]
+IDENTITY_6X1 = np.r_[1., 1., 1., 0., 0., 0.]
 
 # basis vectors
-lab_x = np.r_[1., 0., 0.]  # X in the lab frame
-lab_y = np.r_[0., 1., 0.]  # Y in the lab frame
-lab_z = np.r_[0., 0., 1.]  # Z in the lab frame
-
-zeros_3 = np.zeros(3)
-zeros_3x1 = np.zeros((3, 1))
-zeros_6x1 = np.zeros((6, 1))
+LAB_X = np.r_[1., 0., 0.]  # X in the lab frame
+LAB_Y = np.r_[0., 1., 0.]  # Y in the lab frame
+LAB_Z = np.r_[0., 0., 1.]  # Z in the lab frame
 
 # reference beam direction and eta=0 ref in LAB FRAME for standard geometry
-beam_vec = -lab_z
-eta_vec = lab_x
+BEAM_VEC = -LAB_Z
+ETA_VEC = LAB_X
 
 # change of basis matrix for the Fable-style sample frame to hexrd's
 # !!! the fable sample frame has
@@ -95,13 +73,13 @@ eta_vec = lab_x
 #
 # !!!: if using Midas/Fable orientations, be aware that the crystal frame
 #      is different as well!  See hexrd.crystallography.latticeVectors.
-fable_to_hexrd_cob_rmat = np.array(
+FABLE_TO_HEXRD_COB_RMAT = np.array(
     [[ 0., -1.,  0.],
      [ 0.,  0.,  1.],
      [-1.,  0.,  0.]]
 )
 
-fable_to_hexrd_cob_qpm = np.array(
+FABLE_TO_HEXRD_COB_QUAT_PROD_MAT = np.array(
     [[ 0.5,  0.5, -0.5, -0.5],
      [-0.5,  0.5, -0.5,  0.5],
      [ 0.5,  0.5,  0.5,  0.5],
@@ -109,35 +87,35 @@ fable_to_hexrd_cob_qpm = np.array(
 )
 
 # shared key for imageseries shared by multiple detectors (ROI's)
-shared_ims_key = 'SHARED-IMAGES'
+SHARED_IMS_KEY = 'SHARED-IMAGES'
 
-"""
->> @AUTHOR:     Saransh Singh, Lawrence Livermore National Lab,
-                saransh1@llnl.gov
->> @DATE:       10/19/2021 SS 1.0 original
->> @DETAILS:    some constants for calculation of complementary error
-                and exponential integral functions. everything based
-                on rational approximants of the integral
+# """
+# >> @AUTHOR:     Saransh Singh, Lawrence Livermore National Lab,
+#                 saransh1@llnl.gov
+# >> @DATE:       10/19/2021 SS 1.0 original
+# >> @DETAILS:    some constants for calculation of complementary error
+#                 and exponential integral functions. everything based
+#                 on rational approximants of the integral
 
-coefficients from pg. 415 Y. Luke, The special functions and their
-approximations, vol 2 (1969) Elsevier
-"""
+# coefficients from pg. 415 Y. Luke, The special functions and their
+# approximations, vol 2 (1969) Elsevier
+# """
 
-c_erf = np.array([0.254829592,
+C_ERF = np.array([0.254829592,
 -0.284496736,
  1.421413741,
 -1.453152027,
  1.061405429,
  0.3275911]).astype(np.float64)
 
-c_coeff_exp1exp = np.array([0.999999584,
+C_COEFF_EXP1EXP = np.array([0.999999584,
 -0.249992399,
 0.055514994,
 -0.010315766,
 0.001535370,
 -0.000142164]).astype(np.complex128)
 
-cnum_exp1exp = np.array([1.,
+CNUM_EXP1EXP = np.array([1.,
 99.,
 3952.,
 82544.,
@@ -149,7 +127,7 @@ cnum_exp1exp = np.array([1.,
 10628640.,
 0.]).astype(np.complex128)
 
-cden_exp1exp = np.array([1.,
+CDEN_EXP1EXP = np.array([1.,
 100.,
 4050.,
 86400.,
@@ -161,57 +139,57 @@ cden_exp1exp = np.array([1.,
 36288000.,
 3628800.]).astype(np.complex128)
 
-"""
->> @AUTHOR:     Saransh Singh, Lawrence Livermore National Lab, saransh1@llnl.gov
->> @DATE:       11/28/2022 SS 1.0 original
->> @DETAILS:    constants for rodrigues FZ
-"""
-FZtypeArray = np.array([
+# """
+# >> @AUTHOR:     Saransh Singh, Lawrence Livermore National Lab, saransh1@llnl.gov
+# >> @DATE:       11/28/2022 SS 1.0 original
+# >> @DETAILS:    constants for rodrigues FZ
+# """
+FZ_TYPE_ARRAY = np.array([
 0,0,1,1,1,2,2,2,1,1,1,2,2,2,2,1,1,2,
 2,2,1,1,1,2,2,2,2,3,3,4,3,4]
 )
 
-FZorderArray = np.array([
+FZ_ORDER_ARRAY = np.array([
 0,0,2,2,2,2,2,2,4,4,4,4,4,4,4,3,3,3,
 3,3,6,6,6,6,6,6,6,0,0,0,0,0]
 )
 
-'''
->> @AUTHOR:     Saransh Singh, Lawrence Livermore National Lab, saransh1@llnl.gov
->> @DATE:       10/28/2020 SS 1.0 original
->> @DETAILS:    constants for sphere sectors used for IPF coloring
-'''
+# '''
+# >> @AUTHOR:     Saransh Singh, Lawrence Livermore National Lab, saransh1@llnl.gov
+# >> @DATE:       10/28/2020 SS 1.0 original
+# >> @DETAILS:    constants for sphere sectors used for IPF coloring
+# '''
 # radius of homochoric sphere
-hoR = (np.pi * 3. / 4.)**(1./3.)
+HOMOCHORIC_RADIUS = (np.pi * 3. / 4.)**(1./3.)
 
 # radius of homochoric sphere squared
-hoR2 = (np.pi * 3. / 4.)**(2./3.)
+SQUARE_HOMOCHORIC_RADIUS = HOMOCHORIC_RADIUS ** 2
 
 # edge of cubochoric cube
-cuA = np.pi**(2./3.)
+CUBOCHORIC_EDGE = np.pi**(2./3.)
 
 # semi-edge of cubochoric cube
-cuA_2 = 0.5 * np.pi**(2./3.)
+CUBOCHORIC_SEMI_EDGE = 0.5 * np.pi**(2./3.)
 
-Avol = (np.pi**(5./6.))/(6**(1./6.))
+A_VOL = (np.pi**(5./6.))/(6**(1./6.))
 
-sc = Avol / cuA
+SC = A_VOL / CUBOCHORIC_EDGE
 
-prek = 1.6434564029725040
+PREK = 1.6434564029725040
 
-pref = np.sqrt(6.0/np.pi)
+PREF = np.sqrt(6.0/np.pi)
 
-tfit = np.array([ 0.9999999999999968E0, -0.49999999999986866E0,
--0.025000000000632055E0, - 0.003928571496460683E0,
--0.0008164666077062752E0, - 0.00019411896443261646E0,
--0.00004985822229871769E0, - 0.000014164962366386031E0,
--1.9000248160936107E-6, - 5.72184549898506E-6,
-7.772149920658778E-6, - 0.00001053483452909705E0,
-9.528014229335313E-6, - 5.660288876265125E-6,
-1.2844901692764126E-6, 1.1255185726258763E-6,
--1.3834391419956455E-6, 7.513691751164847E-7,
--2.401996891720091E-7, 4.386887017466388E-8,
--3.5917775353564864E-9 ])
+T_FIT = np.array([ 0.9999999999999968e0, -0.49999999999986866e0,
+-0.025000000000632055e0, - 0.003928571496460683e0,
+-0.0008164666077062752e0, - 0.00019411896443261646e0,
+-0.00004985822229871769e0, - 0.000014164962366386031e0,
+-1.9000248160936107e-6, - 5.72184549898506e-6,
+7.772149920658778e-6, - 0.00001053483452909705e0,
+9.528014229335313e-6, - 5.660288876265125e-6,
+1.2844901692764126e-6, 1.1255185726258763e-6,
+-1.3834391419956455e-6, 7.513691751164847e-7,
+-2.401996891720091e-7, 4.386887017466388e-8,
+-3.5917775353564864e-9 ])
 
 BP = np.array([
 0., 1., 0.577350269189626, 0.414213562373095,
@@ -221,19 +199,13 @@ BP = np.array([
 # this is a constant which defines the sign of the
 # cross-product in the quaternion multiplication rule
 # we will set it to 1 for the standard rule always
-pjik = 1
-
-# sqrt 2 - 1
-tp_8 = np.sqrt(2.) - 1.
-
-# 2 - sqrt(3)
-tp_12 = 2. - np.sqrt(3.)
+CROSS_PRODUCT_SIGN = 1
 
 # for energy/wavelength conversions
 
 
-def keVToAngstrom(x):
-    return (1e7*scipyc.c*scipyc.h/scipyc.e) / np.array(x, dtype=float)
+def k_ev_to_angstrom(k_ev):
+    return (1e7*scipyc.c*scipyc.h/scipyc.e) / np.asarray(k_ev, dtype=float)
 
 
 def _readenv(name, ctor, default):
@@ -304,26 +276,24 @@ del set_numba_cache
 
 
 # some physical constants
-cAvogadro = 6.02214076E23
-cBoltzmann = 1.380649E-23
-cCharge = 1.602176634E-19
-cJ2eV = 1.602176565E-19
-cLight = 299792458.0
-cMoment = 9.2740100707E-24
-cPermea = 1.2566370616E-6
-cPermit = 8.8541878163E-12
-cPlanck = 6.62607015E-34
-cRestmass = 9.1093837090E-31
+AVAGADROS_NUMBER = 6.02214076e23
+BOLTZMANN_CONSTANT = 1.380649e-23 # J/K
+ELEMENTARY_CHARGE = 1.602176634e-19 # Coulombs
+SPEED_OF_LIGHT = 299792458.0 # m/s
+BOHR_MAGNETON = 9.2740100707e-24 # J/T
+VACUUM_PERMEABILITY = 1.2566370616e-6 # H/m
+VACUUM_PERMITTIVITY = 8.8541878163e-12 # F/m
+PLANCK_CONSTANT = 6.62607015e-34 # J s
+ELECTRON_MASS = 9.1093837090e-31 # kg, in rest frame
 
-'''
-adding another parametrization of the scattering factors. these are more recent
-and more accurate. also used in Vesta (copied from there). see:
 
-New Analytical coherent Scattering-Factor Functions for Free Atoms and Ions
-BY D. WAASMAIER AND A. KIRFEL
-Acta Cryst. (1995). A51,416-431
-'''
-scatfac = {
+# adding another parametrization of the scattering factors. these are more recent
+# and more accurate. also used in Vesta (copied from there). see:
+
+# New Analytical coherent Scattering-Factor Functions for Free Atoms and Ions
+# BY D. WAASMAIER AND A. KIRFEL
+# Acta Cryst. (1995). A51,416-431
+SCATTERING_FACTOR = {
         'H': [0.413048, 0.294953, 0.187491, 0.080701, 0.023736, 4.9e-05, 15.569946, 32.398468, 5.711404, 61.889874, 1.334118],
         'H1-': [0.70226, 0.763666, 0.248678, 0.261323, 0.023017, 0.000425, 23.945604, 74.897919, 6.773289, 233.58345, 1.337531],
         'He': [0.732354, 0.753896, 0.283819, 0.190003, 0.039139, 0.000487, 11.553918, 4.595831, 1.546299, 26.463964, 0.377523],
@@ -537,7 +507,7 @@ scatfac = {
         'Cf': [33.794075, 25.467693, 16.048487, 3.657525, 16.008982, 3.005326, 0.550447, 3.581973, 14.357388, 96.064972, 0.05245]
     }
 
-chargestate = {
+CHARGE_STATE = {
     'H': ['0', '1-'],
     'He': ['0'],
     'Li': ['0', '1+'],
@@ -637,10 +607,10 @@ chargestate = {
     'Bk': ['0'],
     'Cf': ['0']
 }
-'''
-this dictionary tabulates the small nuclear Thomson term fNT for all elements up to Z=92
-'''
-fNT = {
+
+
+# this dictionary tabulates the small nuclear Thomson term fNT for all elements up to Z=92
+F_NT = {
 'H':-0.00054423,'He':-0.00054817,'Li':-0.00071131,'Be':-0.00097394,'B':-0.0012687,'C':-0.0016442,'N':-0.0019191,'O':-0.0021944,
 'F':-0.0023389,'Ne':-0.0027186,'Na':-0.0028873,'Mg':-0.0032502,'Al':-0.0034361,'Si':-0.0038284,'P':-0.003985,'S':-0.0043804,
 'Cl':-0.0044718,'Ar':-0.0044493,'K':-0.0050651,'Ca':-0.0054748,'Sc':-0.0053814,'Ti':-0.0055454,'V':-0.0056967,'Cr':-0.006077,
@@ -658,7 +628,7 @@ fNT = {
 '''
 relativistic correction factor for in anomalous scattering for all elements upto Z=92
 '''
-frel = {
+F_REL = {
 'H':0.0,'He':0.0,'Li':-0.0006,'Be':-0.0006,'B':-0.0012,'C':-0.0018,'N':-0.003,'O':-0.0042,
 'F':-0.0054,'Ne':-0.0066,'Na':-0.0084,'Mg':-0.0108,'Al':-0.0126,'Si':-0.0156,'P':-0.018,'S':-0.021,
 'Cl':-0.0246,'Ar':-0.0282,'K':-0.0318,'Ca':-0.036,'Sc':-0.0408,'Ti':-0.045,'V':-0.0504,'Cr':-0.0558,
@@ -673,11 +643,10 @@ frel = {
 'Ac':-1.3722,'Th':-1.4118,'Pa':-1.4526,'U':-1.494}
 
 
-'''
-atomic weights for things like density computations
-(from NIST elemental data base)
-'''
-atom_weights = np.array([1.00794, 4.002602, 6.941, 9.012182, 10.811,
+
+# atomic weights for things like density computations
+# (from NIST elemental data base)
+ATOM_WEIGHTS = np.array([1.00794, 4.002602, 6.941, 9.012182, 10.811,
                          12.0107, 14.0067, 15.9994, 18.9984032, 20.1797,
                          22.98976928, 24.3050, 26.9815386, 28.0855, 30.973762,
                          32.065, 35.453, 39.948, 39.0983, 40.078,
@@ -698,11 +667,11 @@ atom_weights = np.array([1.00794, 4.002602, 6.941, 9.012182, 10.811,
                          231.03588, 238.02891, 237.0, 244.0, 243.0,
                          247.0, 247.0, 251.0])
 
-'''
-dictionary of atomic numbers with element symbol as keys
-used in I/O from cif file
-'''
-ptable = {
+# '''
+# dictionary of atomic numbers with element symbol as keys
+# used in I/O from cif file
+# '''
+P_TABLE = {
     'H': 1, 'He': 2, 'Li': 3, 'Be': 4, 'B': 5, 'C': 6, 'N': 7, 'O': 8,
     'F': 9, 'Ne': 10, 'Na': 11, 'Mg': 12, 'Al': 13, 'Si': 14, 'P': 15,
     'S': 16, 'Cl': 17, 'Ar': 18, 'K': 19, 'Ca': 20, 'Sc': 21, 'Ti': 22,
@@ -721,14 +690,14 @@ ptable = {
     'Sg': 106, 'Bh': 107, 'Hs': 108, 'Mt': 109
 }
 
-ptableinverse = dict.fromkeys(ptable.values())
-for k, v in ptable.items():
-    ptableinverse[v] = k
+P_TABLE_INVERSE = dict.fromkeys(P_TABLE.values())
+for k, v in P_TABLE.items():
+    P_TABLE_INVERSE[v] = k
 
-'''
-listing the symmorphic space groups
-'''
-sgnum_symmorphic = np.array([
+# '''
+# listing the symmorphic space groups
+# '''
+SYMMORPHIC_SPACEGROUP_NUMS = np.array([
     1, 2, 3, 5, 6, 8, 10, 12, 16, 21, 22, 23, 25, 35, 38, 42, 44, 47,
     65, 69, 71, 75, 79, 81, 82, 83, 87, 89, 97, 99, 107, 111, 115,
     119, 121, 123, 139, 143, 146, 147, 148, 149, 150, 155, 156, 157,
@@ -737,9 +706,9 @@ sgnum_symmorphic = np.array([
     229
 ])
 
-''' this variable encodes all the generators (including translations) for all 230 space groups
-    will be used to compute the full space group symmetry operators
-'''
+# ''' this variable encodes all the generators (including translations) for all 230 space groups
+#     will be used to compute the full space group symmetry operators
+# '''
 SYM_GL = [
     "000                                     ", "100                                     ", "01cOOO0                                 ",
     "01cODO0                                 ", "02aDDOcOOO0                             ", "01jOOO0                                 ",
@@ -821,20 +790,20 @@ SYM_GL = [
     "11dOOO0                                 ", "02dOOOfOOO0                             ", "02dOOOlOOO0                             ",
     "02dOOOlDDD0                             ", "12dOOOfOOO0                             ", "12dOOOfDDD0                             "]
 
-'''
-this table contains the screw axis and glide planes
-which is used in calculating the systemtaic absences.
-organized as follows:
+# '''
+# this table contains the screw axis and glide planes
+# which is used in calculating the systemtaic absences.
+# organized as follows:
 
---> the key will be the space group number
---> first list has the glide plane in the
-    primary, secondary and tertiary direction
---> second list has screw axis in primary,secondary
-and tertiary directions
+# --> the key will be the space group number
+# --> first list has the glide plane in the
+#     primary, secondary and tertiary direction
+# --> second list has screw axis in primary,secondary
+# and tertiary directions
 
-obv. this table only has the non-symmorphic groups
-taken from international table of crystallography vol A
-'''
+# obv. this table only has the non-symmorphic groups
+# taken from international table of crystallography vol A
+# '''
 SYS_AB = {
     4: [['', '', ''], ['', '2_1', '']],
     7: [['', 'c', ''], ['', '', '']],
@@ -995,13 +964,13 @@ SYS_AB = {
     230: [['a', '', 'd'], ['4_1', '', '']]
 }
 
-'''
-this dictionary contains the generators encoded in each letter of the generator string
-the full symmetry is generated by the repeated action of the generator matrix
-'''
+# '''
+# this dictionary contains the generators encoded in each letter of the generator string
+# the full symmetry is generated by the repeated action of the generator matrix
+# '''
 
-''' rotational, inversions, mirrors etc. components
-'''
+# ''' rotational, inversions, mirrors etc. components
+# '''
 
 SYM_GENERATORS = {}
 
@@ -1086,8 +1055,8 @@ SYM_GENERATORS['n'][1, 0] = 1.
 SYM_GENERATORS['n'][1, 1] = -1.
 SYM_GENERATORS['n'][2, 2] = 1.
 
-''' translation components
-'''
+# ''' translation components
+# '''
 SYM_GENERATORS['A'] = 1./6.
 SYM_GENERATORS['B'] = 1./4.
 SYM_GENERATORS['C'] = 1./3.
@@ -1101,17 +1070,17 @@ SYM_GENERATORS['Y'] = -1./4.
 SYM_GENERATORS['Z'] = -1./8.
 
 
-'''
-    @AUTHOR  Saransh Singh, Lawrence Livermore National Lab, saransh1@llnl.gov
-    @DATE    11/23/2020 SS 1.0 original
-    @DETAIL. this list of symbols will help us to genrate the point group symmetries
-             in the cartesian space for any point group. this is needed for the
-             supergroup symmetry usd in the coloring scheme used in the package. this
-             needs to be a separate set of routines because the supergroup can be a
-             point group which is not the laue group of the crystal (e.g. m-3 --> m-3m)
-             the notation used will be the same as the one used for the space group
-             without any translations.
-'''
+# '''
+#     @AUTHOR  Saransh Singh, Lawrence Livermore National Lab, saransh1@llnl.gov
+#     @DATE    11/23/2020 SS 1.0 original
+#     @DETAIL. this list of symbols will help us to genrate the point group symmetries
+#              in the cartesian space for any point group. this is needed for the
+#              supergroup symmetry usd in the coloring scheme used in the package. this
+#              needs to be a separate set of routines because the supergroup can be a
+#              point group which is not the laue group of the crystal (e.g. m-3 --> m-3m)
+#              the notation used will be the same as the one used for the space group
+#              without any translations.
+# '''
 SYM_GL_PG = {
     'c1': '1a',  # only identity rotation
     'ci': '1h',  # only inversion operation
@@ -1147,8 +1116,8 @@ SYM_GL_PG = {
     'oh': '3dgh'
 }
 # The above dict must be in the correct order for this to work
-SYM_PG_to_PGNUM = {pg: i + 1 for i, pg in enumerate(SYM_GL_PG)}
-SYM_PGNUM_to_PG = {v: k for k, v in SYM_PG_to_PGNUM.items()}
+SYM_PG_TO_PGNUM = {pg: i + 1 for i, pg in enumerate(SYM_GL_PG)}
+SYM_PGNUM_TO_PG = {v: k for k, v in SYM_PG_TO_PGNUM.items()}
 
 # Set the __version__ variable
 try:

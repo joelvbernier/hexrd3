@@ -116,8 +116,8 @@ class unitcell:
     def CalcWavelength(self):
         # wavelength in nm
         self.wavelength = constants.cPlanck * \
-            constants.cLight /  \
-            constants.cCharge / \
+            constants.SPEED_OF_LIGHT /  \
+            constants.ELEMENTARY_CHARGE / \
             self.voltage
         self.wavelength *= 1e9
 

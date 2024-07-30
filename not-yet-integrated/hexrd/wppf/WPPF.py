@@ -2700,8 +2700,8 @@ class Rietveld:
                         E = (
                             1.0e6
                             * constants.cPlanck
-                            * constants.cLight
-                            / constants.cCharge
+                            * constants.SPEED_OF_LIGHT
+                            / constants.ELEMENTARY_CHARGE
                             / v[0].getVal('nm')
                         )
                         phase_info.beamEnergy = valWUnit(
@@ -2721,8 +2721,8 @@ class Rietveld:
                             E = (
                                 1.0e6
                                 * constants.cPlanck
-                                * constants.cLight
-                                / constants.cCharge
+                                * constants.SPEED_OF_LIGHT
+                                / constants.ELEMENTARY_CHARGE
                                 / v[0].getVal('nm')
                             )
                             mat.beamEnergy = valWUnit(

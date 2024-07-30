@@ -34,7 +34,7 @@ from scipy import sparse
 import numba
 
 
-from hexrd import constants
+from hexrd.core import constants
 
 # module variables
 sqr6i = 1./np.sqrt(6.)
@@ -44,44 +44,18 @@ sqr2 = np.sqrt(2.)
 sqr3 = np.sqrt(3.)
 sqr2b3 = np.sqrt(2./3.)
 
-fpTol = constants.epsf  # 2.220446049250313e-16
-vTol = 100*fpTol
+tol = constants.EPSF
+v_tol = 100 * constants.EPSF
 
 
-def columnNorm(a):
-    """
-    Get the norm(s) of column vectors (hstacked, axis = 0)
-    """
-    if len(a.shape) > 2:
-        raise RuntimeError(
-            "incorrect shape: arg must be 1-d or 2-d, yours is %d"
-            % (len(a.shape))
-        )
-
-    return np.linalg.norm(a, axis=0)
-
-
-def rowNorm(a):
-    """
-    Get the norm(s) of row vectors (hstacked, axis = 1)
-    """
-    if len(a.shape) > 2:
-        raise RuntimeError(
-            "incorrect shape: arg must be 1-d or 2-d, yours is %d"
-            % (len(a.shape))
-        )
-
-    return np.linalg.norm(a, axis=1)
-
-
-def unitVector(a):
+def unit_vector(a):
     """
     normalize array of column vectors (hstacked, axis = 0)
     """
     assert a.ndim in [1, 2], \
         "incorrect arg shape; must be 1-d or 2-d, yours is %d-d" % (a.ndim)
 
-    ztol = constants.ten_epsf
+    ztol = constants.TEN_EPSF
 
     m = a.shape[0]
 
@@ -92,29 +66,28 @@ def unitVector(a):
     return a/nrm
 
 
-def nullSpace(A, tol=vTol):
+def null_space(matrix, tol=v_tol):
     """
-    computes the null space of the real matrix A
+    computes the null space of the real matrix
     """
-    assert A.ndim == 2, \
-        'input must be 2-d; yours is %d-d' % (A.ndim)
+    assert matrix.ndim == 2, \
+        'input must be 2-d; yours is %d-d' % (matrix.ndim)
 
-    n, m = A.shape
+    n, m = matrix.shape
 
     if n > m:
-        return nullSpace(A.T, tol).T
+        return null_space(matrix.T, tol).T
 
-    _, S, V = svd(A)
+    _, S, V = svd(matrix)
 
     S = np.hstack([S, np.zeros(m - n)])
 
     null_mask = (S <= tol)
-    null_space = V[null_mask, :]
 
-    return null_space
+    return V[null_mask, :]
 
 
-def blockSparseOfMatArray(matArray):
+def block_space_of_mat_array(mat_array):
     """
     blockSparseOfMatArray
 
@@ -128,12 +101,12 @@ def blockSparseOfMatArray(matArray):
     #    a = args[0]
     # if a == 'csc': ...
 
-    if len(matArray.shape) != 3:
+    if len(mat_array.shape) != 3:
         raise RuntimeError("input array is not the correct shape!")
 
-    p = matArray.shape[0]
-    m = matArray.shape[1]
-    n = matArray.shape[2]
+    p = mat_array.shape[0]
+    m = mat_array.shape[1]
+    n = mat_array.shape[2]
 
     mn = m*n
     jmax = p*n
@@ -144,7 +117,7 @@ def blockSparseOfMatArray(matArray):
     rm = np.arange(m)
     rjmax = np.arange(jmax)
 
-    sij = matArray.transpose(0, 2, 1).reshape(1, ntot).squeeze()
+    sij = mat_array.transpose(0, 2, 1).reshape(1, ntot).squeeze()
     j = np.reshape(np.tile(rjmax, (m, 1)).T, (1, ntot))
     i = np.reshape(np.tile(rm, (1, jmax)), (1, ntot)) + \
         np.reshape(np.tile(m*rl, (mn, 1)).T, (1, ntot))
@@ -158,7 +131,7 @@ def blockSparseOfMatArray(matArray):
     return smat
 
 
-def symmToVecMV(A, scale=True):
+def symm_to_vec_mv(matrix, scale=True):
     """
     convert from symmetric matrix to Mandel-Voigt vector
     representation (JVB)
@@ -168,16 +141,16 @@ def symmToVecMV(A, scale=True):
     else:
         fac = 1.
     mvvec = np.zeros(6, dtype='float64')
-    mvvec[0] = A[0, 0]
-    mvvec[1] = A[1, 1]
-    mvvec[2] = A[2, 2]
-    mvvec[3] = fac * A[1, 2]
-    mvvec[4] = fac * A[0, 2]
-    mvvec[5] = fac * A[0, 1]
+    mvvec[0] = matrix[0, 0]
+    mvvec[1] = matrix[1, 1]
+    mvvec[2] = matrix[2, 2]
+    mvvec[3] = fac * matrix[1, 2]
+    mvvec[4] = fac * matrix[0, 2]
+    mvvec[5] = fac * matrix[0, 1]
     return mvvec
 
 
-def vecMVToSymm(A, scale=True):
+def vec_mv_to_symm(vector, scale=True):
     """
     convert from Mandel-Voigt vector to symmetric matrix
     representation (JVB)
@@ -187,15 +160,15 @@ def vecMVToSymm(A, scale=True):
     else:
         fac = 1.
     symm_mat = np.zeros((3, 3), dtype='float64')
-    symm_mat[0, 0] = A[0]
-    symm_mat[1, 1] = A[1]
-    symm_mat[2, 2] = A[2]
-    symm_mat[1, 2] = A[3] / fac
-    symm_mat[0, 2] = A[4] / fac
-    symm_mat[0, 1] = A[5] / fac
-    symm_mat[2, 1] = A[3] / fac
-    symm_mat[2, 0] = A[4] / fac
-    symm_mat[1, 0] = A[5] / fac
+    symm_mat[0, 0] = vector[0]
+    symm_mat[1, 1] = vector[1]
+    symm_mat[2, 2] = vector[2]
+    symm_mat[1, 2] = vector[3] / fac
+    symm_mat[0, 2] = vector[4] / fac
+    symm_mat[0, 1] = vector[5] / fac
+    symm_mat[2, 1] = vector[3] / fac
+    symm_mat[2, 0] = vector[4] / fac
+    symm_mat[1, 0] = vector[5] / fac
     return symm_mat
 
 

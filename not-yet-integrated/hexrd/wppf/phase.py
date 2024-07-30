@@ -878,16 +878,16 @@ class Material_Rietveld:
     def CalcWavelength(self):
         # wavelength in nm
         self.wavelength = constants.cPlanck * \
-            constants.cLight /  \
-            constants.cCharge / \
+            constants.SPEED_OF_LIGHT /  \
+            constants.ELEMENTARY_CHARGE / \
             self.voltage
         self.wavelength *= 1e9
         # self.CalcAnomalous()
 
     def CalcKeV(self):
         self.kev = constants.cPlanck * \
-            constants.cLight /  \
-            constants.cCharge / \
+            constants.SPEED_OF_LIGHT /  \
+            constants.ELEMENTARY_CHARGE / \
             self.wavelength
 
         self.kev *= 1e-3
@@ -1495,7 +1495,7 @@ class Phases_Rietveld:
         self.num_phases += 1
         for l in self.wavelength:
             lam = self.wavelength[l][0].getVal('nm') * 1e-9
-            E = constants.cPlanck * constants.cLight / constants.cCharge / lam
+            E = constants.cPlanck * constants.SPEED_OF_LIGHT / constants.ELEMENTARY_CHARGE / lam
             E *= 1e-3
             kev = valWUnit('beamenergy', 'energy', E, 'keV')
             self[material_key][l] = Material_Rietveld(
@@ -1512,8 +1512,8 @@ class Phases_Rietveld:
             self.num_phases += 1
             for l in self.wavelength:
                 lam = self.wavelength[l][0].getVal('nm') * 1e-9
-                E = constants.cPlanck * constants.cLight / \
-                    constants.cCharge / lam
+                E = constants.cPlanck * constants.SPEED_OF_LIGHT / \
+                    constants.ELEMENTARY_CHARGE / lam
                 E *= 1e-3
                 kev = valWUnit('beamenergy', 'energy', E, 'keV')
                 self[k][l] = Material_Rietveld(
