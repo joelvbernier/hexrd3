@@ -34,7 +34,7 @@ class SphericalView:
     @mapping.setter
     def mapping(self, s):
         if s not in self.MAPPING_TYPES:
-            raise RuntimeError("mapping specification '%s' is invalid" % s)
+            raise RuntimeError(f"mapping specification '{s}' is invalid")
 
     @property
     def vector_type(self):
@@ -43,7 +43,7 @@ class SphericalView:
     @vector_type.setter
     def vector_type(self, s):
         if s not in self.VECTOR_TYPES:
-            raise RuntimeError("vector type specification '%s' is invalid" % s)
+            raise RuntimeError(f"vector type specification '{s}' is invalid")
 
     @property
     def output_dim(self):

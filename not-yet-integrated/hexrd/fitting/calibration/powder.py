@@ -324,8 +324,7 @@ class PowderCalibrator(Calibrator):
                     )
                 else:
                     raise RuntimeError(
-                        "unrecognized output flag '%s'"
-                        % output
+                        f"unrecognized output flag '{output}'"
                     )
 
         return retval

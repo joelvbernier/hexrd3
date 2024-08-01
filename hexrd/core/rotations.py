@@ -1,59 +1,55 @@
-# -*- coding: utf-8 -*-
-# =============================================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
-# Produced at the Lawrence Livermore National Laboratory.
-# Written by Joel Bernier <bernier2@llnl.gov> and others.
-# LLNL-CODE-529294.
-# All rights reserved.
-#
-# This file is part of HEXRD. For details on dowloading the source,
-# see the file COPYING.
-#
-# Please also see the file LICENSE.
-#
-# This program is free software; you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License (as published by the Free
-# Software Foundation) version 2.1 dated February 1999.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public
-# License along with this program (see file LICENSE); if not, write to
-# the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
-# Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
-# =============================================================================
-#
-# Module containing functions relevant to rotations
-#
+"""
+-*- coding: utf-8 -*-
+=============================================================================
+Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+Produced at the Lawrence Livermore National Laboratory.
+Written by Joel Bernier <bernier2@llnl.gov> and others.
+LLNL-CODE-529294.
+All rights reserved.
+
+This file is part of HEXRD. For details on dowloading the source,
+see the file COPYING.
+
+Please also see the file LICENSE.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License (as published by the Free
+Software Foundation) version 2.1 dated February 1999.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this program (see file LICENSE); if not, write to
+the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
+Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
+=============================================================================
+
+Module containing functions relevant to rotations
+"""
 import sys
 
 import numpy as np
-from numba import njit
 from scipy.optimize import leastsq
 from scipy.spatial.transform import Rotation as R
-
-from hexrd.deprecation import deprecated
-from hexrd import constants as cnst
-from hexrd.matrixutil import (
-    columnNorm,
-    unitVector,
-    findDuplicateVectors,
-    multMatArray,
-    nullSpace,
+from hexrd.core import constants as cnst
+from hexrd.core.matrixutil import (
+    unit_vector,
+    mult_mat_array,
+    null_space,
+    find_duplicate_vectors,
 )
 
 # =============================================================================
 # Module Data
 # =============================================================================
 
-angularUnits = 'radians'  # module-level angle units
-periodDict = {'degrees': 360.0, 'radians': 2 * np.pi}
-conversion_to_dict = {'degrees': cnst.r2d, 'radians': cnst.d2r}
+period_dict = cnst.PERIOD_DICT
+conversion_to_dict = {'degrees': 180 / np.pi, 'radians': np.pi / 180}
 
-I3 = cnst.identity_3x3  # (3, 3) identity matrix
+I3 = np.eye(3)  # (3, 3) identity matrix
 
 # axes orders, all permutations
 axes_orders = [
@@ -82,16 +78,17 @@ piby6 = np.pi / 6.0
 # =============================================================================
 
 
-def arccosSafe(cosines):
+def arccos_safe(cosines):
     """
     Protect against numbers slightly larger than 1 in magnitude
     due to round-off
     """
     cosines = np.atleast_1d(cosines)
     if (np.abs(cosines) > 1.00001).any():
-        print("attempt to take arccos of %s" % cosines, file=sys.stderr)
+        print(f"attempt to take arccos of {cosines}", file=sys.stderr)
         raise RuntimeError("unrecoverable error")
     return np.arccos(np.clip(cosines, -1.0, 1.0))
+
 
 #
 #  ==================== Quaternions
@@ -113,7 +110,7 @@ def _scipy_rotation_to_quat(r: R) -> np.ndarray:
     return quat
 
 
-def fixQuat(q):
+def fix_quat(q):
     """
     flip to positive q0 and normalize
     """
@@ -123,9 +120,9 @@ def fixQuat(q):
         assert m == 4, 'your 3-d quaternion array isn\'t the right shape'
         q = q.transpose(0, 2, 1).reshape(l * n, 4).T
 
-    qfix = unitVector(q)
+    qfix = unit_vector(q)
 
-    q0negative = qfix[0, ] < 0
+    q0negative = qfix[0,] < 0
     qfix[:, q0negative] = -1 * qfix[:, q0negative]
 
     if qdims == 3:
@@ -134,7 +131,7 @@ def fixQuat(q):
     return qfix
 
 
-def invertQuat(q):
+def invert_quat(q):
     """
     silly little routine for inverting a quaternion
     """
@@ -144,7 +141,7 @@ def invertQuat(q):
 
     qinv = imat * q
 
-    return fixQuat(qinv)
+    return fix_quat(qinv)
 
 
 def misorientation(q1, q2, symmetries=None):
@@ -178,8 +175,7 @@ def misorientation(q1, q2, symmetries=None):
 
     if q1.shape[1] != 1:
         raise RuntimeError(
-            "first argument should be a single quaternion, got shape %s"
-            % (q1.shape,)
+            f"first argument should be a single quaternion, got shape {q1.shape}"
         )
 
     if symmetries is None:
@@ -202,8 +198,7 @@ def misorientation(q1, q2, symmetries=None):
                 )
         elif len(symmetries) > 2:
             raise RuntimeError(
-                "symmetry argument has %d entries; should be 1 or 2"
-                % (len(symmetries))
+                f"symmetry argument has {len(symmetries)} entries; should be 1 or 2"
             )
 
     # set some lengths
@@ -212,11 +207,11 @@ def misorientation(q1, q2, symmetries=None):
     p = symmetries[1].shape[1]  # sample  (left)
 
     # tile q1 inverse
-    q1i = quatProductMatrix(invertQuat(q1), mult='right').squeeze()
+    q1i = quat_product_matrix(invert_quat(q1), mult='right').squeeze()
 
     # convert symmetries to (4, 4) qprod matrices
-    rsym = quatProductMatrix(symmetries[0], mult='right')
-    lsym = quatProductMatrix(symmetries[1], mult='left')
+    rsym = quat_product_matrix(symmetries[0], mult='right')
+    lsym = quat_product_matrix(symmetries[1], mult='left')
 
     # Do R * Gc, store as
     # [q2[:, 0] * Gc[:, 0:m], ..., q2[:, n-1] * Gc[:, 0:m]]
@@ -230,34 +225,34 @@ def misorientation(q1, q2, symmetries=None):
     # Calculate the class misorientations for full symmetrically equivalent
     # classes for q1 and q2.  Note the use of the fact that the application
     # of the symmetry groups is an isometry.
-    eqvMis = fixQuat(np.dot(q1i, q2))
+    eqv_mis = fix_quat(np.dot(q1i, q2))
 
     # Reshape scalar comp columnwise by point in q2 (and q1, if applicable)
-    sclEqvMis = eqvMis[0, :].reshape(n, p * m).T
+    scl_eqv_mis = eqv_mis[0, :].reshape(n, p * m).T
 
     # Find misorientation closest to origin for each n equivalence classes
     #   - fixed quats so garaunteed that sclEqvMis is nonnegative
-    qmax = sclEqvMis.max(0)
+    qmax = scl_eqv_mis.max(0)
 
     # remap indices to use in eqvMis
-    qmaxInd = (sclEqvMis == qmax).nonzero()
-    qmaxInd = np.c_[qmaxInd[0], qmaxInd[1]]
+    qmax_ind = (scl_eqv_mis == qmax).nonzero()
+    qmax_ind = np.c_[qmax_ind[0], qmax_ind[1]]
 
-    eqvMisColInd = np.sort(qmaxInd[:, 0] + qmaxInd[:, 1] * p * m)
+    eqv_mis_col_ind = np.sort(qmax_ind[:, 0] + qmax_ind[:, 1] * p * m)
 
     # store Rmin in q
-    mis = eqvMis[np.ix_(list(range(4)), eqvMisColInd)]
+    mis = eqv_mis[np.ix_(list(range(4)), eqv_mis_col_ind)]
 
-    angle = 2 * arccosSafe(qmax)
+    angle = 2 * arccos_safe(qmax)
 
     return angle, mis
 
 
-def quatProduct(q1, q2):
+def quat_product(q1, q2):
     """
     Product of two unit quaternions.
 
-    qp = quatProduct(q2, q1)
+    qp = quat_product(q2, q1)
 
     q2, q1 are 4 x n, arrays whose columns are
            quaternion parameters
@@ -277,12 +272,12 @@ def quatProduct(q1, q2):
     return _scipy_rotation_to_quat(rot_p)
 
 
-def quatProductMatrix(quats, mult='right'):
+def quat_product_matrix(quats, mult='right'):
     """
     Form 4 x 4 arrays to perform the quaternion product
 
     USAGE
-        qmats = quatProductMatrix(quats, mult='right')
+        qmats = quat_product_matrix(quats, mult='right')
 
     INPUTS
         1) quats is (4, n), a numpy ndarray array of n quaternions
@@ -290,9 +285,9 @@ def quatProductMatrix(quats, mult='right'):
         2) mult is a keyword arg, either 'left' or 'right', denoting
            the sense of the multiplication:
 
-                       | quatProductMatrix(h, mult='right') * q
+                       | quat_product_matrix(h, mult='right') * q
            q * h  --> <
-                       | quatProductMatrix(q, mult='left') * h
+                       | quat_product_matrix(q, mult='left') * h
 
     OUTPUTS
         1) qmats is (n, 4, 4), the left or right quaternion product
@@ -314,21 +309,53 @@ def quatProductMatrix(quats, mult='right'):
     q2 = quats[2, :].copy()
     q3 = quats[3, :].copy()
     if mult == 'right':
-        qmats = np.array([[q0], [q1], [q2], [q3],
-                       [-q1], [q0], [-q3], [q2],
-                       [-q2], [q3], [q0], [-q1],
-                       [-q3], [-q2], [q1], [q0]])
+        qmats = np.array(
+            [
+                [q0],
+                [q1],
+                [q2],
+                [q3],
+                [-q1],
+                [q0],
+                [-q3],
+                [q2],
+                [-q2],
+                [q3],
+                [q0],
+                [-q1],
+                [-q3],
+                [-q2],
+                [q1],
+                [q0],
+            ]
+        )
     elif mult == 'left':
-        qmats = np.array([[q0], [q1], [q2], [q3],
-                       [-q1], [q0], [q3], [-q2],
-                       [-q2], [-q3], [q0], [q1],
-                       [-q3], [q2], [-q1], [q0]])
+        qmats = np.array(
+            [
+                [q0],
+                [q1],
+                [q2],
+                [q3],
+                [-q1],
+                [q0],
+                [q3],
+                [-q2],
+                [-q2],
+                [-q3],
+                [q0],
+                [q1],
+                [-q3],
+                [q2],
+                [-q1],
+                [q0],
+            ]
+        )
     # some fancy reshuffling...
     qmats = qmats.T.reshape((nq, 4, 4)).transpose(0, 2, 1)
     return qmats
 
 
-def quatOfAngleAxis(angle, rotaxis):
+def angle_axis_to_quat(angle, rotaxis):
     """
     make an hstacked array of quaternions from arrays of angle/axis pairs
     """
@@ -341,18 +368,18 @@ def quatOfAngleAxis(angle, rotaxis):
         raise RuntimeError("rotation axes argument has incompatible shape")
 
     # Normalize the axes
-    rotaxis = unitVector(rotaxis)
+    rotaxis = unit_vector(rotaxis)
     rot = R.from_rotvec((angle * rotaxis).T)
     return _scipy_rotation_to_quat(rot)
 
 
-def quatOfExpMap(expMaps):
+def exp_map_to_quat(exp_maps):
     """
     Returns the unit quaternions associated with exponential map parameters.
 
     Parameters
     ----------
-    expMaps : array_like
+    exp_maps : array_like
         The (3,) or (3, n) list of hstacked exponential map parameters to
         convert.
 
@@ -368,33 +395,35 @@ def quatOfExpMap(expMaps):
 
     """
     cdim = 3  # critical dimension of input
-    expMaps = np.atleast_2d(expMaps)
-    if len(expMaps) == 1:
-        assert expMaps.shape[1] == cdim, (
-            "your input quaternion must have %d elements" % cdim
-        )
-        expMaps = np.reshape(expMaps, (cdim, 1))
+    exp_maps = np.atleast_2d(exp_maps)
+    if len(exp_maps) == 1:
+        assert (
+            exp_maps.shape[1] == cdim
+        ), f"your input quaternion must have {cdim} elements"
+        exp_maps = np.reshape(exp_maps, (cdim, 1))
     else:
-        assert len(expMaps) == cdim, (
-            "your input quaternions must have shape (%d, n) for n > 1" % cdim
-        )
+        assert (
+            len(exp_maps) == cdim
+        ), f"your input quaternions must have shape ({cdim}, n) for n > 1"
 
-    return _scipy_rotation_to_quat(R.from_rotvec(expMaps.T)).squeeze()
+    return _scipy_rotation_to_quat(R.from_rotvec(exp_maps.T)).squeeze()
 
 
-def quatOfRotMat(r_mat):
+def rot_mat_to_quat(r_mat):
     """
     Generate quaternions from rotation matrices
     """
     return _scipy_rotation_to_quat(R.from_matrix(r_mat))
 
 
-def quatAverageCluster(q_in, qsym):
-    """ """
+def quat_average_cluster(q_in, qsym):
+    """
+    Average two quaternions with symmetries
+    """
     assert q_in.ndim == 2, 'input must be 2-s hstacked quats'
 
     # renormalize
-    q_in = unitVector(q_in)
+    q_in = unit_vector(q_in)
 
     # check to see num of quats is > 1
     if q_in.shape[1] < 3:
@@ -405,35 +434,37 @@ def quatAverageCluster(q_in, qsym):
                 q_in[:, 0].reshape(4, 1), q_in[:, 1].reshape(4, 1), (qsym,)
             )
 
-            q_bar = quatProduct(
+            q_bar = quat_product(
                 q_in[:, 0].reshape(4, 1),
-                quatOfExpMap(0.5 * ma * unitVector(mq[1:])).reshape(4, 1),
+                exp_map_to_quat(0.5 * ma * unit_vector(mq[1:])).reshape(4, 1),
             )
     else:
         # first drag to origin using first quat (arb!)
         q0 = q_in[:, 0].reshape(4, 1)
-        qrot = np.dot(quatProductMatrix(invertQuat(q0), mult='left'), q_in)
+        qrot = np.dot(quat_product_matrix(invert_quat(q0), mult='left'), q_in)
 
         # second, re-cast to FR
-        qrot = toFundamentalRegion(qrot.squeeze(), crysSym=qsym)
+        qrot = to_fundamental_region(qrot.squeeze(), crys_sym=qsym)
 
         # compute arithmetic average
-        q_bar = unitVector(np.average(qrot, axis=1).reshape(4, 1))
+        q_bar = unit_vector(np.average(qrot, axis=1).reshape(4, 1))
 
         # unrotate!
-        q_bar = np.dot(quatProductMatrix(q0, mult='left'), q_bar)
+        q_bar = np.dot(quat_product_matrix(q0, mult='left'), q_bar)
 
         # re-map
-        q_bar = toFundamentalRegion(q_bar, crysSym=qsym)
+        q_bar = to_fundamental_region(q_bar, crys_sym=qsym)
     return q_bar
 
 
-def quatAverage(q_in, qsym):
-    """ """
+def quat_average(q_in, qsym):
+    """
+    Average two quaternions with symmetries
+    """
     assert q_in.ndim == 2, 'input must be 2-s hstacked quats'
 
     # renormalize
-    q_in = unitVector(q_in)
+    q_in = unit_vector(q_in)
 
     # check to see num of quats is > 1
     if q_in.shape[1] < 3:
@@ -443,9 +474,9 @@ def quatAverage(q_in, qsym):
             ma, mq = misorientation(
                 q_in[:, 0].reshape(4, 1), q_in[:, 1].reshape(4, 1), (qsym,)
             )
-            q_bar = quatProduct(
+            q_bar = quat_product(
                 q_in[:, 0].reshape(4, 1),
-                quatOfExpMap(0.5 * ma * unitVector(mq[1:].reshape(3, 1))),
+                exp_map_to_quat(0.5 * ma * unit_vector(mq[1:].reshape(3, 1))),
             )
     else:
         # use first quat as initial guess
@@ -453,9 +484,22 @@ def quatAverage(q_in, qsym):
         if phi <= np.finfo(float).eps:
             x0 = np.zeros(3)
         else:
-            n = unitVector(q_in[1:, 0].reshape(3, 1))
+            n = unit_vector(q_in[1:, 0].reshape(3, 1))
             x0 = phi * n.flatten()
-        results = leastsq(quatAverage_obj, x0, args=(q_in, qsym))
+
+        # Objective function to optimize
+        def _quat_average_obj(xi_in, quats, qsym):
+            phi = np.sqrt(sum(xi_in.flatten() * xi_in.flatten()))
+            if phi <= np.finfo(float).eps:
+                q0 = np.c_[1.0, 0.0, 0.0, 0.0].T
+            else:
+                n = xi_in.flatten() / phi
+                q0 = np.hstack([np.cos(0.5 * phi), np.sin(0.5 * phi) * n])
+            resd = misorientation(q0.reshape(4, 1), quats, (qsym,))[0]
+            return resd
+
+        # Optimize
+        results = leastsq(_quat_average_obj, x0, args=(q_in, qsym))
         phi = np.sqrt(sum(results[0] * results[0]))
         if phi <= np.finfo(float).eps:
             q_bar = np.c_[1.0, 0.0, 0.0, 0.0].T
@@ -467,18 +511,7 @@ def quatAverage(q_in, qsym):
     return q_bar
 
 
-def quatAverage_obj(xi_in, quats, qsym):
-    phi = np.sqrt(sum(xi_in.flatten() * xi_in.flatten()))
-    if phi <= np.finfo(float).eps:
-        q0 = np.c_[1.0, 0.0, 0.0, 0.0].T
-    else:
-        n = xi_in.flatten() / phi
-        q0 = np.hstack([np.cos(0.5 * phi), np.sin(0.5 * phi) * n])
-    resd = misorientation(q0.reshape(4, 1), quats, (qsym,))[0]
-    return resd
-
-
-def expMapOfQuat(quats):
+def quat_to_exp_map(quats):
     """
     Return the exponential map parameters for an array of unit quaternions
 
@@ -498,67 +531,29 @@ def expMapOfQuat(quats):
     cdim = 4  # critical dimension of input
     quats = np.atleast_2d(quats)
     if len(quats) == 1:
-        assert quats.shape[1] == cdim, (
-            "your input quaternion must have %d elements" % cdim
-        )
+        assert (
+            quats.shape[1] == cdim
+        ), f"your input quaternion must have {cdim} elements"
         quats = np.reshape(quats, (cdim, 1))
     else:
-        assert len(quats) == cdim, (
-            "your input quaternions must have shape (%d, n) for n > 1" % cdim
-        )
+        assert (
+            len(quats) == cdim
+        ), f"your input quaternions must have shape ({cdim}, n) for n > 1"
 
     return _quat_to_scipy_rotation(quats).as_rotvec().T.squeeze()
 
 
-def rotMatOfExpMap(expMap):
+def exp_map_to_rot_mat(exp_map):
     """
     Make a rotation matrix from an expmap
     """
-    if expMap.ndim == 1:
-        expMap = expMap.reshape(3, 1)
+    if exp_map.ndim == 1:
+        exp_map = exp_map.reshape(3, 1)
 
-    return R.from_rotvec(expMap.T).as_matrix().squeeze()
-
-
-@deprecated(new_func="Use `rotMatOfExpMap` instead", removal_date="2025-07-01")
-def rotMatOfExpMap_orig(expMap):
-    return rotMatOfExpMap(expMap)
+    return R.from_rotvec(exp_map.T).as_matrix().squeeze()
 
 
-@deprecated(new_func="Use `rotMatOfExpMap` instead", removal_date="2025-07-01")
-def rotMatOfExpMap_opt(expMap):
-    return rotMatOfExpMap(expMap)
-
-
-@njit(cache=True, nogil=True)
-def _rotmatofquat(quat):
-    n = quat.shape[1]
-    # FIXME: maybe preallocate for speed?
-    # R = np.zeros(n*3*3, dtype='float64')
-
-    a = np.ascontiguousarray(quat[0, :]).reshape(n, 1)
-    b = np.ascontiguousarray(quat[1, :]).reshape(n, 1)
-    c = np.ascontiguousarray(quat[2, :]).reshape(n, 1)
-    d = np.ascontiguousarray(quat[3, :]).reshape(n, 1)
-
-    R = np.hstack(
-        (
-            a**2 + b**2 - c**2 - d**2,
-            2 * b * c - 2 * a * d,
-            2 * a * c + 2 * b * d,
-            2 * a * d + 2 * b * c,
-            a**2 - b**2 + c**2 - d**2,
-            2 * c * d - 2 * a * b,
-            2 * b * d - 2 * a * c,
-            2 * a * b + 2 * c * d,
-            a**2 - b**2 - c**2 + d**2,
-        )
-    )
-
-    return R.reshape(n, 3, 3)
-
-
-def rotMatOfQuat(quat):
+def quat_to_rot_mat(quat):
     """
     Convert quaternions to rotation matrices.
 
@@ -588,18 +583,16 @@ def rotMatOfQuat(quat):
     if quat.ndim == 1:
         if len(quat) != 4:
             raise RuntimeError("input is the wrong shape")
-        else:
-            quat = quat.reshape(4, 1)
-    else:
-        if quat.shape[0] != 4:
-            raise RuntimeError("input is the wrong shape")
+        quat = quat.reshape(4, 1)
+    elif quat.shape[0] != 4:
+        raise RuntimeError("input is the wrong shape")
 
-    rmat = _rotmatofquat(quat)
+    rmat = _quat_to_scipy_rotation(quat).as_matrix()
 
     return np.squeeze(rmat)
 
 
-def angleAxisOfRotMat(rot_mat):
+def rot_mat_to_angle_axis(rot_mat):
     """
     Extracts angle and axis invariants from rotation matrices.
 
@@ -635,13 +628,12 @@ def angleAxisOfRotMat(rot_mat):
         else:
             raise RuntimeError(
                 "rot_mat array must be (3, 3) or (n, 3, 3); "
-                "input has dimension %d"
-                % (rdim)
+                f"input has dimension {rdim}"
             )
 
     rot_vec = R.from_matrix(rot_mat).as_rotvec()
     angs = np.linalg.norm(rot_vec, axis=1)
-    axes = unitVector(rot_vec.T)
+    axes = unit_vector(rot_vec.T)
     return angs, axes
 
 
@@ -650,7 +642,7 @@ def _check_axes_order(x):
         raise RuntimeError("argument must be str")
     axo = x.lower()
     if axo not in axes_orders:
-        raise RuntimeError("order '%s' is not a valid choice" % x)
+        raise RuntimeError(f"order '{x}' is not a valid choice")
     return axo
 
 
@@ -660,10 +652,9 @@ def _check_is_rmat(x):
         raise RuntimeError("shape of input must be (3, 3)")
     chk1 = np.linalg.det(x)
     chk2 = np.sum(np.abs(np.eye(3) - np.dot(x, x.T)))
-    if 1.0 - np.abs(chk1) < cnst.sqrt_epsf and chk2 < cnst.sqrt_epsf:
+    if 1.0 - np.abs(chk1) < cnst.SQRT_EPSF and chk2 < cnst.SQRT_EPSF:
         return x
-    else:
-        raise RuntimeError("input is not an orthogonal matrix")
+    raise RuntimeError("input is not an orthogonal matrix")
 
 
 def make_rmat_euler(tilt_angles, axes_order, extrinsic=True):
@@ -702,56 +693,14 @@ def make_rmat_euler(tilt_angles, axes_order, extrinsic=True):
     return R.from_euler(axo, tilt_angles).as_matrix()
 
 
-def angles_from_rmat_xyz(rmat):
+class RotMatEuler:
     """
-    Calculate passive x-y-z Euler angles from a rotation matrix.
-
-    Parameters
-    ----------
-    rmat : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    rx : TYPE
-        DESCRIPTION.
-    ry : TYPE
-        DESCRIPTION.
-    rz : TYPE
-        DESCRIPTION.
-
+    Conversion object for euler angles and rotation matrices
     """
-    rmat = _check_is_rmat(rmat)
 
-    return R.from_matrix(rmat).as_euler('xyz')
-
-
-def angles_from_rmat_zxz(rmat):
-    """
-    Calculate active z-x-z Euler angles from a rotation matrix.
-
-    Parameters
-    ----------
-    rmat : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    alpha : TYPE
-        DESCRIPTION.
-    beta : TYPE
-        DESCRIPTION.
-    gamma : TYPE
-        DESCRIPTION.
-
-    """
-    rmat = _check_is_rmat(rmat)
-
-    return R.from_matrix(rmat).as_euler('ZXZ')
-
-
-class RotMatEuler(object):
-    def __init__(self, angles, axes_order, extrinsic=True, units=angularUnits):
+    def __init__(
+        self, angles, axes_order, extrinsic=True, units=cnst.ANGULAR_UNITS
+    ):
         """
         Abstraction of a rotation matrix defined by Euler angles.
 
@@ -789,12 +738,15 @@ class RotMatEuler(object):
         self._angles = angles
         self._axes_order = _check_axes_order(axes_order)
         self._extrinsic = extrinsic
-        if units.lower() not in periodDict.keys():
-            raise RuntimeError("angular units '%s' not understood" % units)
+        if units.lower() not in period_dict:
+            raise RuntimeError(f"angular units '{units}' not understood")
         self._units = units
 
     @property
     def angles(self):
+        """
+        Euler angles, in whatever units are set in units, defaults to radians
+        """
         return self._angles
 
     @angles.setter
@@ -807,6 +759,9 @@ class RotMatEuler(object):
 
     @property
     def axes_order(self):
+        """
+        Euler axes order, like 'xyx', 'zyx', etc.
+        """
         return self._axes_order
 
     @axes_order.setter
@@ -816,6 +771,9 @@ class RotMatEuler(object):
 
     @property
     def extrinsic(self):
+        """
+        True if euler andles are extrinsic, False if intrinsic
+        """
         return self._extrinsic
 
     @extrinsic.setter
@@ -827,11 +785,14 @@ class RotMatEuler(object):
 
     @property
     def units(self):
+        """
+        Radians or degrees, what the euler angles are
+        """
         return self._units
 
     @units.setter
     def units(self, x):
-        if isinstance(x, str) and x in periodDict.keys():
+        if isinstance(x, str) and x in period_dict:
             if self._units != x:
                 # !!! we are changing units; update self.angles
                 self.angles = conversion_to_dict[x] * np.asarray(self.angles)
@@ -894,7 +855,7 @@ class RotMatEuler(object):
             the encoded rotation (self.rmat).
 
         """
-        phi, n = angleAxisOfRotMat(self.rmat)
+        phi, n = rot_mat_to_angle_axis(self.rmat)
         return phi * n.flatten()
 
     @exponential_map.setter
@@ -919,165 +880,14 @@ class RotMatEuler(object):
         """
         x = np.atleast_1d(x).flatten()
         assert len(x) == 3, "input must have exactly 3 elements"
-        self.rmat = rotMatOfExpMap(x.reshape(3, 1))  # use local func
-
-
-#
-#  ==================== Fiber
-#
-
-
-def distanceToFiber(c, s, q, qsym, centrosymmetry=False, bmatrix=I3):
-    """
-    Calculate symmetrically reduced distance to orientation fiber.
-
-    Parameters
-    ----------
-    c : TYPE
-        DESCRIPTION.
-    s : TYPE
-        DESCRIPTION.
-    q : TYPE
-        DESCRIPTION.
-    qsym : TYPE
-        DESCRIPTION.
-    centrosymmetry : bool, optional
-        If True, apply centrosymmetry to c. The default is False.
-    bmatrix : np.ndarray, optional
-        (3,3) b matrix. Default is the identity
-
-    Raises
-    ------
-    RuntimeError
-        DESCRIPTION.
-
-    Returns
-    -------
-    d : TYPE
-        DESCRIPTION.
-
-    """
-    if len(c) != 3 or len(s) != 3:
-        raise RuntimeError('c and/or s are not 3-vectors')
-
-    c = unitVector(np.dot(bmatrix, np.asarray(c)))
-    s = unitVector(np.asarray(s).reshape(3, 1))
-
-    nq = q.shape[1]  # number of quaternions
-    rmats = rotMatOfQuat(q)  # (nq, 3, 3)
-
-    csym = applySym(c, qsym, centrosymmetry)  # (3, m)
-    m = csym.shape[1]  # multiplicity
-
-    if nq == 1:
-        rc = np.dot(rmats, csym)  # apply q's to c's
-
-        sdotrc = np.dot(s.T, rc).max()
-    else:
-        rc = multMatArray(rmats, np.tile(csym, (nq, 1, 1)))  # apply q's to c's
-
-        sdotrc = (
-            np.dot(s.T, rc.swapaxes(1, 2).reshape(nq * m, 3).T)
-            .reshape(nq, m)
-            .max(1)
-        )
-
-    d = arccosSafe(np.array(sdotrc))
-
-    return d
-
-
-def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
-    """
-    Generate symmetrically reduced discrete orientation fiber.
-
-    Parameters
-    ----------
-    c : TYPE
-        DESCRIPTION.
-    s : TYPE
-        DESCRIPTION.
-    B : TYPE, optional
-        DESCRIPTION. The default is I3.
-    ndiv : TYPE, optional
-        DESCRIPTION. The default is 120.
-    invert : TYPE, optional
-        DESCRIPTION. The default is False.
-    csym : TYPE, optional
-        DESCRIPTION. The default is None.
-    ssym : TYPE, optional
-        DESCRIPTION. The default is None.
-
-    Raises
-    ------
-    RuntimeError
-        DESCRIPTION.
-
-    Returns
-    -------
-    retval : TYPE
-        DESCRIPTION.
-
-    """
-
-    ztol = cnst.sqrt_epsf
-
-    c = np.asarray(c).reshape((3, 1))
-    s = np.asarray(s).reshape((3, 1))
-
-    nptc = c.shape[1]
-    npts = s.shape[1]
-
-    c = unitVector(np.dot(B, c))  # turn c hkls into unit vector in crys frame
-    s = unitVector(s)  # convert s to unit vector in samp frame
-
-    retval = []
-    for i_c in range(nptc):
-        dupl_c = np.tile(c[:, i_c], (npts, 1)).T
-
-        ax = s + dupl_c
-        anrm = columnNorm(ax).squeeze()  # should be 1-d
-
-        okay = anrm > ztol
-        nokay = okay.sum()
-        if nokay == npts:
-            ax = ax / np.tile(anrm, (3, 1))
-        else:
-            nspace = nullSpace(c[:, i_c].reshape(3, 1))
-            hperp = nspace[:, 0].reshape(3, 1)
-            if nokay == 0:
-                ax = np.tile(hperp, (1, npts))
-            else:
-                ax[:, okay] = ax[:, okay] / np.tile(anrm[okay], (3, 1))
-                ax[:, not okay] = np.tile(hperp, (1, npts - nokay))
-
-        q0 = np.vstack([np.zeros(npts), ax])
-
-        # find rotations
-        # note: the following line fixes bug with use of arange
-        # with float increments
-        phi = np.arange(0, ndiv) * (2 * np.pi / float(ndiv))
-        qh = quatOfAngleAxis(phi, np.tile(c[:, i_c], (ndiv, 1)).T)
-
-        # the fibers, arraged as (npts, 4, ndiv)
-        qfib = np.dot(quatProductMatrix(qh, mult='right'), q0).transpose(
-            2, 1, 0
-        )
-        if csym is not None:
-            retval.append(
-                toFundamentalRegion(qfib.squeeze(), crysSym=csym, sampSym=ssym)
-            )
-        else:
-            retval.append(fixQuat(qfib).squeeze())
-    return retval
-
+        self.rmat = exp_map_to_rot_mat(x.reshape(3, 1))  # use local func
 
 #
 #  ==================== Utility Functions
 #
 
 
-def mapAngle(ang, ang_range=None, units=angularUnits):
+def map_angle(ang, ang_range=None, units=cnst.ANGULAR_UNITS):
     """
     Utility routine to map an angle into a specified period
     """
@@ -1086,9 +896,7 @@ def mapAngle(ang, ang_range=None, units=angularUnits):
     elif units.lower() == 'radians':
         period = 2.0 * np.pi
     else:
-        raise RuntimeError(
-            "unknown angular units: " + units
-        )
+        raise RuntimeError("unknown angular units: " + units)
 
     ang = np.nan_to_num(np.atleast_1d(np.float_(ang)))
 
@@ -1102,7 +910,7 @@ def mapAngle(ang, ang_range=None, units=angularUnits):
         min_val = ang_range.min()
         max_val = ang_range.max()
 
-        if not np.allclose(max_val-min_val, period):
+        if not np.allclose(max_val - min_val, period):
             raise RuntimeError('range is incomplete!')
 
     val = np.mod(ang - min_val, max_val - min_val) + min_val
@@ -1111,43 +919,19 @@ def mapAngle(ang, ang_range=None, units=angularUnits):
     val[np.logical_and(val == min_val, ang > min_val)] = max_val
     return val
 
-def angularDifference_orig(angList0, angList1, units=angularUnits):
-    """
-    Do the proper (acute) angular difference in the context of a branch cut.
 
-    *) Default angular range in the code is [-pi, pi]
-    *) ... maybe more efficient not to vectorize?
-    """
-    if units == 'radians':
-        period = 2 * np.pi
-    elif units == 'degrees':
-        period = 360.0
-    else:
-        raise RuntimeError(
-            "'%s' is an unrecognized option for angular units!" % (units)
-        )
-
-    # take difference as arrays
-    diffAngles = np.asarray(angList0) - np.asarray(angList1)
-
-    return np.abs(np.mod(diffAngles + 0.5 * period, period) - 0.5 * period)
-
-
-def angularDifference_opt(angList0, angList1, units=angularUnits):
+def angular_difference(ang_list0, ang_list1, units=cnst.ANGULAR_UNITS):
     """
     Do the proper (acute) angular difference in the context of a branch cut.
 
     *) Default angular range in the code is [-pi, pi]
     """
-    period = periodDict[units]
-    d = np.abs(angList1 - angList0)
+    period = period_dict[units]
+    d = np.abs(ang_list1 - ang_list0)
     return np.minimum(d, period - d)
 
 
-angularDifference = angularDifference_opt
-
-
-def applySym(vec, qsym, csFlag=False, cullPM=False, tol=cnst.sqrt_epsf):
+def apply_sym(vec, qsym, cs_flag=False, ignore_sign=False, tol=cnst.SQRT_EPSF):
     """
     Apply symmetry group to a single 3-vector (columnar) argument.
 
@@ -1155,23 +939,23 @@ def applySym(vec, qsym, csFlag=False, cullPM=False, tol=cnst.sqrt_epsf):
     cullPM : cull +/- flag
     """
     nsym = qsym.shape[1]
-    Rsym = rotMatOfQuat(qsym)
+    r_sym = quat_to_rot_mat(qsym)
     if nsym == 1:
-        Rsym = np.array(
+        r_sym = np.array(
             [
-                Rsym,
+                r_sym,
             ]
         )
     allhkl = (
-        multMatArray(Rsym, np.tile(vec, (nsym, 1, 1)))
+        mult_mat_array(r_sym, np.tile(vec, (nsym, 1, 1)))
         .swapaxes(1, 2)
         .reshape(nsym, 3)
         .T
     )
 
-    if csFlag:
+    if cs_flag:
         allhkl = np.hstack([allhkl, -1 * allhkl])
-    _, uid = findDuplicateVectors(allhkl, tol=tol, equivPM=cullPM)
+    _, uid = find_duplicate_vectors(allhkl, tol=tol, ignore_sign=ignore_sign)
 
     return allhkl[np.ix_(list(range(3)), uid)]
 
@@ -1181,7 +965,7 @@ def applySym(vec, qsym, csFlag=False, cullPM=False, tol=cnst.sqrt_epsf):
 # =============================================================================
 
 
-def toFundamentalRegion(q, crysSym='Oh', sampSym=None):
+def to_fundamental_region(q, crys_sym='Oh', samp_sym=None):
     """
     Map quaternions to fundamental region.
 
@@ -1189,9 +973,9 @@ def toFundamentalRegion(q, crysSym='Oh', sampSym=None):
     ----------
     q : TYPE
         DESCRIPTION.
-    crysSym : TYPE, optional
+    crys_sym : TYPE, optional
         DESCRIPTION. The default is 'Oh'.
-    sampSym : TYPE, optional
+    samp_sym : TYPE, optional
         DESCRIPTION. The default is None.
 
     Raises
@@ -1209,12 +993,12 @@ def toFundamentalRegion(q, crysSym='Oh', sampSym=None):
         l3, m3, n3 = q.shape
         assert m3 == 4, 'your 3-d quaternion array isn\'t the right shape'
         q = q.transpose(0, 2, 1).reshape(l3 * n3, 4).T
-    if isinstance(crysSym, str):
-        qsym_c = quatProductMatrix(
-            quatOfLaueGroup(crysSym), 'right'
+    if isinstance(crys_sym, str):
+        qsym_c = quat_product_matrix(
+            laue_group_to_quat(crys_sym), 'right'
         )  # crystal symmetry operator
     else:
-        qsym_c = quatProductMatrix(crysSym, 'right')
+        qsym_c = quat_product_matrix(crys_sym, 'right')
 
     n = q.shape[1]  # total number of quats
     m = qsym_c.shape[0]  # number of symmetry operations
@@ -1226,25 +1010,25 @@ def toFundamentalRegion(q, crysSym='Oh', sampSym=None):
     # [q[:, 0] * Gc[:, 0:m], ..., 2[:, n-1] * Gc[:, 0:m]]
     qeqv = np.dot(qsym_c, q).transpose(2, 0, 1).reshape(m * n, 4).T
 
-    if sampSym is None:
+    if samp_sym is None:
         # need to fix quats to sort
-        qeqv = fixQuat(qeqv)
+        qeqv = fix_quat(qeqv)
 
         # Reshape scalar comp columnwise by point in qeqv
         q0 = qeqv[0, :].reshape(n, m).T
 
         # Find q0 closest to origin for each n equivalence classes
-        q0maxColInd = np.argmax(q0, 0) + [x * m for x in range(n)]
+        q0max_col_ind = np.argmax(q0, 0) + [x * m for x in range(n)]
 
         # store representatives in qr
-        qr = qeqv[:, q0maxColInd]
+        qr = qeqv[:, q0max_col_ind]
     else:
-        if isinstance(sampSym, str):
-            qsym_s = quatProductMatrix(
-                quatOfLaueGroup(sampSym), 'left'
+        if isinstance(samp_sym, str):
+            qsym_s = quat_product_matrix(
+                laue_group_to_quat(samp_sym), 'left'
             )  # sample symmetry operator
         else:
-            qsym_s = quatProductMatrix(sampSym, 'left')
+            qsym_s = quat_product_matrix(samp_sym, 'left')
 
         p = qsym_s.shape[0]  # number of sample symmetry operations
 
@@ -1252,7 +1036,7 @@ def toFundamentalRegion(q, crysSym='Oh', sampSym=None):
         # [Gs[:, 0:p]*q[:,   0]*Gc[:, 0], ..., Gs[:, 0:p]*q[:,   0]*Gc[:, m-1],
         #  ...,
         #  Gs[:, 0:p]*q[:, n-1]*Gc[:, 0], ..., Gs[:, 0:p]*q[:, n-1]*Gc[:, m-1]]
-        qeqv = fixQuat(
+        qeqv = fix_quat(
             np.dot(qsym_s, qeqv).transpose(2, 0, 1).reshape(p * m * n, 4).T
         )
 
@@ -1267,7 +1051,7 @@ def toFundamentalRegion(q, crysSym='Oh', sampSym=None):
     return qr
 
 
-def ltypeOfLaueGroup(tag):
+def laue_group_to_ltype(tag):
     """
     Yield lattice type of input tag.
 
@@ -1307,14 +1091,14 @@ def ltypeOfLaueGroup(tag):
     else:
         raise RuntimeError(
             "unrecognized symmetry group.  "
-            + "See ''help(quatOfLaueGroup)'' for a list of valid options.  "
+            + "See ''help(laue_group_to_quat)'' for a list of valid options.  "
             + "Oh, and have a great day ;-)"
         )
 
     return ltype
 
 
-def quatOfLaueGroup(tag):
+def laue_group_to_quat(tag):
     """
     Return quaternion representation of requested symmetry group.
 
@@ -1365,16 +1149,16 @@ def quatOfLaueGroup(tag):
 
     if tag.lower() == 'ci' or tag.lower() == 's2':
         # TRICLINIC
-        angleAxis = np.vstack([0.0, 1.0, 0.0, 0.0])  # identity
+        angle_axis = np.vstack([0.0, 1.0, 0.0, 0.0])  # identity
     elif tag.lower() == 'c2h':
         # MONOCLINIC
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [np.pi, 0, 1, 0],  # twofold about 010 (x2)
         ]
     elif tag.lower() == 'd2h' or tag.lower() == 'vh':
         # ORTHORHOMBIC
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [np.pi, 1, 0, 0],  # twofold about 100
             [np.pi, 0, 1, 0],  # twofold about 010
@@ -1382,7 +1166,7 @@ def quatOfLaueGroup(tag):
         ]
     elif tag.lower() == 'c4h':
         # TETRAGONAL (LOW)
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [piby2, 0, 0, 1],  # fourfold about 001 (x3)
             [np.pi, 0, 0, 1],  #
@@ -1390,7 +1174,7 @@ def quatOfLaueGroup(tag):
         ]
     elif tag.lower() == 'd4h':
         # TETRAGONAL (HIGH)
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [piby2, 0, 0, 1],  # fourfold about 0  0  1 (x3)
             [np.pi, 0, 0, 1],  #
@@ -1402,14 +1186,14 @@ def quatOfLaueGroup(tag):
         ]
     elif tag.lower() == 'c3i' or tag.lower() == 's6':
         # TRIGONAL (LOW)
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [piby3 * 2, 0, 0, 1],  # threefold about 0001 (x3,c)
             [piby3 * 4, 0, 0, 1],  #
         ]
     elif tag.lower() == 'd3d':
         # TRIGONAL (HIGH)
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [piby3 * 2, 0, 0, 1],  # threefold about 0001 (x3,c)
             [piby3 * 4, 0, 0, 1],  #
@@ -1419,7 +1203,7 @@ def quatOfLaueGroup(tag):
         ]
     elif tag.lower() == 'c6h':
         # HEXAGONAL (LOW)
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [piby3, 0, 0, 1],  # sixfold about 0001 (x3,c)
             [piby3 * 2, 0, 0, 1],  #
@@ -1429,7 +1213,7 @@ def quatOfLaueGroup(tag):
         ]
     elif tag.lower() == 'd6h':
         # HEXAGONAL (HIGH)
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [piby3, 0, 0, 1],  # sixfold about  0  0  1 (x3,c)
             [piby3 * 2, 0, 0, 1],  #
@@ -1445,7 +1229,7 @@ def quatOfLaueGroup(tag):
         ]
     elif tag.lower() == 'th':
         # CUBIC (LOW)
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [np.pi, 1, 0, 0],  # twofold about    1  0  0 (x1)
             [np.pi, 0, 1, 0],  # twofold about    0  1  0 (x2)
@@ -1461,7 +1245,7 @@ def quatOfLaueGroup(tag):
         ]
     elif tag.lower() == 'oh':
         # CUBIC (HIGH)
-        angleAxis = np.c_[
+        angle_axis = np.c_[
             [0.0, 1, 0, 0],  # identity
             [piby2, 1, 0, 0],  # fourfold about   1  0  0 (x1)
             [np.pi, 1, 0, 0],  #
@@ -1490,15 +1274,15 @@ def quatOfLaueGroup(tag):
     else:
         raise RuntimeError(
             "unrecognized symmetry group.  "
-            + "See ``help(quatOfLaueGroup)'' for a list of valid options.  "
+            + "See ``help(laue_group_to_quat)'' for a list of valid options.  "
             + "Oh, and have a great day ;-)"
         )
 
-    angle = angleAxis[0, ]
-    axis = angleAxis[1:, ]
+    angle = angle_axis[0,]
+    axis = angle_axis[1:,]
 
-    #  Note: Axis does not need to be normalized in call to quatOfAngleAxis
+    #  Note: Axis does not need to be normalized in call to angle_axis_to_quat
     #  05/01/2014 JVB -- made output a contiguous C-ordered array
-    qsym = np.array(quatOfAngleAxis(angle, axis).T, order='C').T
+    qsym = np.array(angle_axis_to_quat(angle, axis).T, order='C').T
 
     return qsym

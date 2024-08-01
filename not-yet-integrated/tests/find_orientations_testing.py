@@ -52,7 +52,7 @@ def compare_quaternion_lists(new_quats, ref_quats, tol=0.05):
     if len(new_quats) != nquats:
         raise RuntimeError(
             "Incorrect number of orientations found; should be %d" % nquats
-            + ", currently found %d" % len(new_quats)
+            + f", currently found {len(new_quats)}"
         )
 
     # NEXT CHECK THE ACTUAL MISORIENTATIONS
@@ -143,7 +143,7 @@ class Comparison:
             if nrmdiff < self.tol:
                 return True, "eta: same"
             else:
-                msg = "eta: norm of difference: %s" % nrmdiff
+                msg = f"eta: norm of difference: {nrmdiff}"
                 logging.info(msg)
                 return False, msg
 
@@ -161,7 +161,7 @@ class Comparison:
             if nrmdiff < self.tol:
                 return True, "omega: same"
             else:
-                msg = "omega: norm of difference: %s" % nrmdiff
+                msg = f"omega: norm of difference: {nrmdiff}"
                 logging.info(msg)
                 return False, msg
 
@@ -213,7 +213,7 @@ class Comparison:
                 if diff < self.tol:
                     return True, "data: same"
                 else:
-                    msg = "data: map %s: map values differ" % (ind)
+                    msg = f"data: map {ind}: map values differ"
                     logging.info(msg)
                     return False, msg
 

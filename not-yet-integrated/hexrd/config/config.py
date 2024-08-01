@@ -36,7 +36,7 @@ class Config(object):
                 res = temp.get(item, default)
             else:
                 raise RuntimeError(
-                    '%s must be specified in configuration file' % key
+                    f'{key} must be specified in configuration file'
                     )
         return res
 
@@ -76,5 +76,5 @@ class Config(object):
         if os.path.exists(temp):
             return temp
         raise IOError(
-            'file: "%s" not found' % temp
+            f'file: "{temp}" not found'
             )

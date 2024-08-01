@@ -230,10 +230,10 @@ class Material(object):
 
     def __str__(self):
         """String representation"""
-        s = 'Material:  %s\n' % self.name
+        s = f'Material:  {self.name}\n'
         if self.description:
-            s += '   description:  %s\n' % self.description
-        s += '   plane Data:  %s' % str(self.planeData)
+            s += f'   description:  {self.description}\n'
+        s += f'   plane Data:  {str(self.planeData)}'
         return s
 
     def _reset_lparms(self):

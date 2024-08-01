@@ -57,8 +57,7 @@ def compare(ims1, ims2):
 
     if ims1.dtype != ims2.dtype:
         raise ValueError(
-            "types do not match: %s is not %s" %
-            (repr(ims1.dtype), repr(ims2.dtype))
+            f"types do not match: {repr(ims1.dtype)} is not {repr(ims2.dtype)}"
         )
 
     maxdiff = 0.0

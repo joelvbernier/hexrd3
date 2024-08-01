@@ -29,7 +29,6 @@ from importlib.metadata import version, PackageNotFoundError
 import multiprocessing as mp
 import os
 import platform
-
 import numpy as np
 
 from scipy import constants as scipyc
@@ -276,7 +275,7 @@ del set_numba_cache
 
 
 # some physical constants
-AVAGADROS_NUMBER = 6.02214076e23
+AVOGADROS_NUMBER = 6.02214076e23
 BOLTZMANN_CONSTANT = 1.380649e-23 # J/K
 ELEMENTARY_CHARGE = 1.602176634e-19 # Coulombs
 SPEED_OF_LIGHT = 299792458.0 # m/s

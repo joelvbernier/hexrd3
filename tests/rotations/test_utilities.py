@@ -1,4 +1,4 @@
-from hexrd import rotations
+from hexrd.core import rotations
 import numpy as np
 
 
@@ -9,7 +9,7 @@ def test_map_angle_degrees():
     np.random.seed(0)
     for _ in range(100):
         angs = np.random.rand(10) * 10000 - 5000
-        map_angs_deg = rotations.mapAngle(angs, units='degrees')
+        map_angs_deg = rotations.map_angle(angs, units='degrees')
         assert (np.abs(map_angs_deg) <= 180).all()
         assert np.allclose(
             np.sin(np.radians(map_angs_deg)), np.sin(np.radians(angs))
@@ -26,7 +26,7 @@ def test_map_angle_radians():
     np.random.seed(0)
     for _ in range(100):
         angs = np.random.rand(10) * 60 - 30
-        map_angs_deg = rotations.mapAngle(angs)
+        map_angs_deg = rotations.map_angle(angs)
         assert (np.abs(map_angs_deg) <= np.pi).all()
         assert np.allclose(np.sin(map_angs_deg), np.sin(angs))
         assert np.allclose(np.cos(map_angs_deg), np.cos(angs))
@@ -41,7 +41,7 @@ def test_map_angle_degrees_range():
         angs = np.random.rand(10) * 10000 - 5000
         min_val = np.random.rand() * 1000 - 500
         max_val = min_val + 360
-        map_angs_deg = rotations.mapAngle(
+        map_angs_deg = rotations.map_angle(
             angs, [min_val, max_val], units='degrees'
         )
 
@@ -63,7 +63,7 @@ def test_map_angle_radians_range():
         angs = np.random.rand(10) * 60 - 30
         min_val = np.random.rand() * 30 - 15
         max_val = min_val + 2 * np.pi
-        map_angs_deg = rotations.mapAngle(
+        map_angs_deg = rotations.map_angle(
             angs, [max_val, min_val], units='radians'
         )
 

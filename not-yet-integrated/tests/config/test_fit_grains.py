@@ -4,12 +4,12 @@ from .common import TestConfig, test_data
 
 
 reference_data = \
-"""
+f"""
 analysis_name: analysis
 ---
 fit_grains:
   do_fit: false
-  estimate: %(nonexistent_file)s
+  estimate: {test_data['nonexistent_file']}
   npdiv: 1
   panel_buffer: 10
   threshold: 1850
@@ -20,7 +20,7 @@ fit_grains:
   tth_max: false
 ---
 fit_grains:
-  estimate: %(existing_file)s
+  estimate: {test_data['existing_file']}
   panel_buffer: [20, 30]
   tolerance:
     eta: [1, 2]
@@ -48,7 +48,7 @@ fit_grains:
   tthmax: 1.2
   sfacmax: 1.3
   pintmax: 1.4
-""" % test_data
+"""
 
 
 class TestFitGrainsConfig(TestConfig):

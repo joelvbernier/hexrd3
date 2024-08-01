@@ -60,7 +60,7 @@ class FindOrientationsConfig(Config):
         if os.path.isfile(temp):
             return temp
         raise IOError(
-            '"%s": "%s" does not exist' % (key, temp)
+            f'"{key}": "{temp}" does not exist'
             )
 
     @property
@@ -81,8 +81,7 @@ class ClusteringConfig(Config):
         if temp in choices:
             return temp
         raise RuntimeError(
-            '"%s": "%s" not recognized, must be one of %s'
-            % (key, temp, choices)
+            f'"{key}": "{temp}" not recognized, must be one of {choices}'
             )
 
     @property
@@ -92,7 +91,7 @@ class ClusteringConfig(Config):
         if temp is not None:
             return temp
         raise RuntimeError(
-            '"%s" must be specified' % key
+            f'"{key}" must be specified'
             )
 
     @property
@@ -102,7 +101,7 @@ class ClusteringConfig(Config):
         if temp is not None:
             return temp
         raise RuntimeError(
-            '"%s" must be specified' % key
+            f'"{key}" must be specified'
             )
 
 
@@ -119,8 +118,7 @@ class OmegaConfig(Config):
         logger.warning('omega period specification is deprecated')
         if range != 360:
             raise RuntimeError(
-                '"%s": range must be 360 degrees, range of %s is %g'
-                % (key, temp, range)
+                f'"{key}": range must be 360 degrees, range of {temp} is {range:g}'
                 )
         return temp
 
@@ -168,7 +166,7 @@ class SeedSearchConfig(Config):
         except:
             if self._cfg.find_orientations.use_quaternion_grid is None:
                 raise RuntimeError(
-                    '"%s" must be defined for seeded search' % key
+                    f'"{key}" must be defined for seeded search'
                     )
 
     @property
@@ -189,14 +187,13 @@ class SeedSearchConfig(Config):
                 method_spec = next(iter(list(temp.keys())))
                 if method_spec.lower() not in seed_search_methods:
                     raise RuntimeError(
-                        'invalid seed search method "%s"'
-                        % method_spec
+                        f'invalid seed search method "{method_spec}"'
                     )
                 else:
                     return temp
         except:
             raise RuntimeError(
-                '"%s" must be defined for seeded search' % key
+                f'"{key}" must be defined for seeded search'
             )
 
     @property

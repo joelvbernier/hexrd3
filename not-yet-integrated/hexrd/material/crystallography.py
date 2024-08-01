@@ -217,7 +217,7 @@ def latticePlanes(hkls, lparms,
     location = 'latticePlanes'
 
     assert hkls.shape[0] == 3, \
-        "hkls aren't column vectors in call to '%s'!" % location
+        f"hkls aren't column vectors in call to '{location}'!"
 
     tag = ltype
     wlen = wavelength
@@ -419,7 +419,7 @@ def latticeVectors(lparms, tag='cubic', radians=False, debug=False):
         cellparms = np.r_[lparms[0], lparms[1], lparms[2],
                           aconv*lparms[3], aconv*lparms[4], aconv*lparms[5]]
     else:
-        raise RuntimeError('lattice tag \'%s\' is not recognized' % (tag))
+        raise RuntimeError(f'lattice tag \'{tag}\' is not recognized')
 
     if debug:
         print((str(cellparms[0:3]) + ' ' + str(r2d*cellparms[3:6])))
@@ -734,9 +734,9 @@ class PlaneData(object):
     def __str__(self):
         s = '========== plane data ==========\n'
         s += 'lattice parameters:\n   ' + str(self.lparms) + '\n'
-        s += 'two theta width: (%s)\n' % str(self.tThWidth)
-        s += 'strain magnitude: (%s)\n' % str(self.strainMag)
-        s += 'beam energy (%s)\n' % str(self.wavelength)
+        s += f'two theta width: ({str(self.tThWidth)})\n'
+        s += f'strain magnitude: ({str(self.strainMag)})\n'
+        s += f'beam energy ({str(self.wavelength)})\n'
         s += 'hkls: (%d)\n' % self.nHKLs
         s += str(self.getHKLs())
         return s

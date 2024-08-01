@@ -142,10 +142,10 @@ class valWUnit:
             new = valWUnit(self.name, self.uT, self.value*other, self.unit)
             return new
         elif isinstance(other, valWUnit):
-            new = valWUnit('%s_times_%s' % (self.name, other.name),
-                           '%s %s' % (self.uT, other.uT),
+            new = valWUnit(f'{self.name}_times_{other.name}',
+                           f'{self.uT} {other.uT}',
                            self.value*other.value,
-                           '(%s)*(%s)' % (self.unit, other.unit)
+                           f'({self.unit})*({other.unit})'
                            )
             # really need to put in here something to resolve new.uT
             return new

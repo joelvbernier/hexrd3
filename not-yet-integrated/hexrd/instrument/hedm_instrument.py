@@ -595,8 +595,7 @@ class HEDMInstrument(object):
             elif not isinstance(instrument_config, dict):
                 raise RuntimeError(
                     "instrument_config must be either an HDF5 file object"
-                    + "or a dictionary.  You gave a %s"
-                    % type(instrument_config)
+                    + f"or a dictionary.  You gave a {type(instrument_config)}"
                 )
             if instrument_name is None:
                 if 'id' in instrument_config:
@@ -655,7 +654,7 @@ class HEDMInstrument(object):
                             panel_buffer = det_buffer*np.ones(2)
                         else:
                             raise RuntimeError(
-                                "panel buffer spec invalid for %s" % det_id
+                                f"panel buffer spec invalid for {det_id}"
                             )
 
                 # optional roi
@@ -995,7 +994,7 @@ class HEDMInstrument(object):
         """ WRITE OUT YAML FILE """
         # initialize output dictionary
         assert style.lower() in ['yaml', 'hdf5'], \
-            "style must be either 'yaml', or 'hdf5'; you gave '%s'" % style
+            f"style must be either 'yaml', or 'hdf5'; you gave '{style}'"
 
         par_dict = {}
 
@@ -1095,15 +1094,14 @@ class HEDMInstrument(object):
             if dpnp > 0:
                 if detector.distortion is None:
                     raise RuntimeError(
-                        "distortion discrepancy for '%s'!"
-                        % det_name
+                        f"distortion discrepancy for '{det_name}'!"
                     )
                 else:
                     try:
                         detector.distortion.params = p[ii:ii + dpnp]
                     except AssertionError:
                         raise RuntimeError(
-                            "distortion for '%s' " % det_name
+                            f"distortion for '{det_name}' "
                             + "expects %d params but got %d"
                             % (len(detector.distortion.params), dpnp)
                         )
@@ -1168,7 +1166,7 @@ class HEDMInstrument(object):
 
         ring_maps_panel = dict.fromkeys(self.detectors)
         for i_d, det_key in enumerate(self.detectors):
-            print("working on detector '%s'..." % det_key)
+            print(f"working on detector '{det_key}'...")
 
             # grab panel
             panel = self.detectors[det_key]
@@ -2200,7 +2198,7 @@ class GrainDataWriter(object):
     def dump_grain(self, grain_id, completeness, chisq,
                    grain_params):
         assert len(grain_params) == 12, \
-            "len(grain_params) must be 12, not %d" % len(grain_params)
+            f"len(grain_params) must be 12, not {len(grain_params)}"
 
         # extract strain
         emat = logm(np.linalg.inv(mutil.vecMVToSymm(grain_params[6:])))

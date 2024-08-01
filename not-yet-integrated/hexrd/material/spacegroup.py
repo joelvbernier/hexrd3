@@ -99,11 +99,11 @@ class SpaceGroup:
     def __str__(self):
         """Print information about the space group"""
         s = 'space group number:  %d\n' % self.sgnum
-        s += '       Hall Symbol:  %s\n' % self.HallSymbol
-        s += '   Hermann-Mauguin:  %s\n' % self.hermannMauguin
-        s += '       Point Group:  %s\n' % self.pointGroup
-        s += '        Laue Group:  %s\n' % self.laueGroup
-        s += '      Lattice Type:  %s\n' % self.latticeType
+        s += f'       Hall Symbol:  {self.HallSymbol}\n'
+        s += f'   Hermann-Mauguin:  {self.hermannMauguin}\n'
+        s += f'       Point Group:  {self.pointGroup}\n'
+        s += f'        Laue Group:  {self.laueGroup}\n'
+        s += f'      Lattice Type:  {self.latticeType}\n'
 
         return s
 

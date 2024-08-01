@@ -31,9 +31,6 @@
 
 import numpy as np
 from numba import njit
-from numpy import array, sqrt, pi, \
-     vstack, c_, dot, \
-     argmax
 
 # from hexrd.rotations import quatOfAngleAxis, quatProductMatrix, fixQuat
 from hexrd import rotations as rot

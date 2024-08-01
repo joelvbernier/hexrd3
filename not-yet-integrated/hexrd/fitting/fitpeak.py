@@ -163,7 +163,7 @@ def estimate_pk_parms_1d(x, f, pktype='pvoigt'):
         # A, x0, alpha0, alpha1, beta0, beta1, fwhm_g, fwhm_l
         p = [A, x0, alpha0, alpha1, beta0, beta1, FWHM, FWHM, bg0, bg1]
     else:
-        raise RuntimeError("pktype '%s' not understood" % pktype)
+        raise RuntimeError(f"pktype '{pktype}' not understood")
 
     return np.r_[p]
 

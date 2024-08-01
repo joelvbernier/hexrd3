@@ -2,9 +2,7 @@
 import numpy as np
 import pytest
 
-from hexrd.material import symmetry
-from hexrd import rotations
-
+from hexrd.core import rotations
 
 def test_misorientations():
     """Use Laue groups to test for zero misorientation"""
@@ -18,7 +16,7 @@ def test_misorientations():
     ]
     for lg in laue_groups:
         print("group: ", lg)
-        qsym = symmetry.quatOfLaueGroup(lg)
+        qsym = rotations.laue_group_to_quat(lg)
         q1 = qsym[:, -1:]
         ang, mis = rotations.misorientation(q1, qsym, (qsym,))
         assert np.allclose(ang, 0.0)

@@ -1069,7 +1069,7 @@ def gen_nf_dark(data_folder,img_nums,num_for_dark,nrows,ncols,dark_type='median'
     print('Loading data for dark generation...')
     for ii in np.arange(num_for_dark):
         print('Image #: ' + str(ii))
-        dark_stack[ii,:,:]=imgio.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)
+        dark_stack[ii,:,:]=imgio.imread(data_folder+f'{stem}'+str(img_nums[ii]).zfill(num_digits)+ext)
         #image_stack[ii,:,:]=np.flipud(tmp_img>threshold)
 
     if dark_type=='median':
@@ -1101,7 +1101,7 @@ def gen_nf_cleaned_image_stack(data_folder,img_nums,dark,nrows,ncols, \
 
         for ii in np.arange(img_nums.shape[0]):
             print('Image #: ' + str(ii))
-            tmp_img=imgio.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)-dark
+            tmp_img=imgio.imread(data_folder+f'{stem}'+str(img_nums[ii]).zfill(num_digits)+ext)-dark
             #image procesing
             tmp_img = filters.gaussian(tmp_img, sigma=sigma)
 
@@ -1118,7 +1118,7 @@ def gen_nf_cleaned_image_stack(data_folder,img_nums,dark,nrows,ncols, \
 
         for ii in np.arange(img_nums.shape[0]):
             print('Image #: ' + str(ii))
-            tmp_img=imgio.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)-dark
+            tmp_img=imgio.imread(data_folder+f'{stem}'+str(img_nums[ii]).zfill(num_digits)+ext)-dark
             #image procesing
             image_stack[ii,:,:]=img.morphology.binary_erosion(tmp_img>threshold,iterations=num_erosions)
             image_stack[ii,:,:]=img.morphology.binary_dilation(image_stack[ii,:,:],iterations=num_dilations)
@@ -1688,7 +1688,7 @@ def output_grain_map(data_location,data_stems,output_stem,vol_spacing,top_down=T
             f.write('POINTS %d double\n' % (num_pts))
 
             for i in np.arange(num_pts):
-                f.write('%e %e %e \n' %(Xslist[i],Yslist[i],Zslist[i]))
+                f.write(f'{Xslist[i]:e} {Yslist[i]:e} {Zslist[i]:e} \n')
 
             scale2=num_cols*num_rows
             scale1=num_cols
@@ -1724,7 +1724,7 @@ def output_grain_map(data_location,data_stems,output_stem,vol_spacing,top_down=T
             f.write('FIELD FieldData 1 \n' )
             f.write('confidence 1 %d float \n' % (num_pts))
             for i in np.arange(num_pts):
-                f.write('%e \n' %(conflist[i]))
+                f.write(f'{conflist[i]:e} \n')
 
 
             f.close()

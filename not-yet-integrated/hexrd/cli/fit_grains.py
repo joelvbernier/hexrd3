@@ -173,7 +173,7 @@ def execute(args, parser):
     # path to accepted_orientations
     quats_f = os.path.join(
         cfg.working_dir,
-        'accepted_orientations_%s.dat' % cfg.analysis_id
+        f'accepted_orientations_{cfg.analysis_id}.dat'
         )
 
     # some conditionals for arg handling
@@ -193,7 +193,7 @@ def execute(args, parser):
                 qbar = np.loadtxt(quats_f, ndmin=2).T
             except(IOError):
                 raise(RuntimeError,
-                      "error loading indexing results '%s'" % quats_f)
+                      f"error loading indexing results '{quats_f}'")
         else:
             logger.info("Missing %s, running find-orientations", quats_f)
             logger.removeHandler(ch)
@@ -322,14 +322,14 @@ def execute(args, parser):
             logger.info("using initial estimate '%s'", fit_estimate)
         elif existing_analysis and not clobber:
             raise(RuntimeError,
-                  "fit results '%s' exist, " % grains_filename
+                  f"fit results '{grains_filename}' exist, "
                   + "but --clean or --force options not specified")
 
         # get grain parameters by loading grains table
         try:
             grains_table = np.loadtxt(grains_filename, ndmin=2)
         except(IOError):
-            raise RuntimeError("problem loading '%s'" % grains_filename)
+            raise RuntimeError(f"problem loading '{grains_filename}'")
 
         # process the data
         gid_list = None

@@ -360,9 +360,9 @@ class SpectrumModel(object):
         """
         # peak and background spec
         assert pktype in _function_dict_1d.keys(), \
-            "peak type '%s' not recognized" % pktype
+            f"peak type '{pktype}' not recognized"
         assert bgtype in _function_dict_1d.keys(), \
-            "background type '%s' not recognized" % bgtype
+            f"background type '{bgtype}' not recognized"
         self._pktype = pktype
         self._bgtype = bgtype
 

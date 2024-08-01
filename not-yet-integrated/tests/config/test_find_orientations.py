@@ -6,17 +6,17 @@ from .common import TestConfig, test_data
 
 
 reference_data = \
-"""
+f"""
 analysis_name: analysis
-working_dir: %(tempdir)s
+working_dir: {test_data['tempdir']}
 ---
 find_orientations:
   orientation_maps:
     active_hkls: 1
     bin_frames: 2
-    file: %(nonexistent_file)s
+    file: {test_data['nonexistent_file']}
     threshold: 100
-  use_quaternion_grid: %(nonexistent_file)s
+  use_quaternion_grid: {test_data['nonexistent_file']}
   threshold: 5
   extract_measured_g_vectors: true
   omega:
@@ -37,8 +37,8 @@ image_series:
 find_orientations:
   orientation_maps:
     active_hkls: [1, 2]
-    file: %(existing_file)s
-  use_quaternion_grid: %(existing_file)s
+    file: {test_data['existing_file']}
+  use_quaternion_grid: {test_data['existing_file']}
   seed_search:
     hkl_seeds: 1
     fiber_step: 2.0
@@ -54,7 +54,7 @@ find_orientations:
     algorithm: foo
   omega:
     period: [-60, 60]
-""" % test_data
+"""
 
 
 

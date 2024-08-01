@@ -8,16 +8,16 @@ from hexrd import config
 
 
 reference_data = \
-"""
+f"""
 analysis_name: analysis
 #working_dir: # not set to test defaulting to cwd
 ---
 analysis_name: analysis_2
-working_dir: %(existing_path)s
+working_dir: {test_data['existing_path']}
 multiprocessing: -1
 ---
 #analysis_name: # not set to test inheritance
-working_dir: %(nonexistent_path)s
+working_dir: {test_data['nonexistent_path']}
 multiprocessing: all
 ---
 multiprocessing: half
@@ -29,7 +29,7 @@ multiprocessing: 1000
 multiprocessing: -1000
 ---
 multiprocessing: foo
-""" % test_data
+"""
 
 
 class TestRootConfig(TestConfig):

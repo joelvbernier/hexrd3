@@ -410,10 +410,10 @@ def arccosSafe(temp):
             temp = temp.reshape(1)
 
     if (temp > 1.00001).any():
-        print("attempt to take arccos of %s" % temp, file=sys.stderr)
+        print(f"attempt to take arccos of {temp}", file=sys.stderr)
         raise RuntimeError("unrecoverable error")
     elif (temp < -1.00001).any():
-        print("attempt to take arccos of %s" % temp, file=sys.stderr)
+        print(f"attempt to take arccos of {temp}", file=sys.stderr)
         raise RuntimeError("unrecoverable error")
 
     gte1 = temp >= 1.

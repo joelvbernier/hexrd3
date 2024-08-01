@@ -85,8 +85,7 @@ class FitGrainsConfig(Config):
         else:
             if not isinstance(temp, (int, float, list)):
                 raise RuntimeError(
-                    '"%s" must be None, a scalar, or a list, got "%s"'
-                    % (key, temp)
+                    f'"{key}" must be None, a scalar, or a list, got "{temp}"'
                     )
             if isinstance(temp, (int, float)):
                 temp = [temp, temp]
@@ -102,7 +101,7 @@ class FitGrainsConfig(Config):
         if temp in (True, False):
             return temp
         raise RuntimeError(
-            '"%s" must be true or false, got "%s"' % (key, temp)
+            f'"{key}" must be true or false, got "{temp}"'
             )
 
     @property
@@ -112,7 +111,7 @@ class FitGrainsConfig(Config):
         if temp in (True, False):
             return temp
         raise RuntimeError(
-            '"%s" must be true or false, got "%s"' % (key, temp)
+            f'"{key}" must be true or false, got "{temp}"'
             )
 
     @property
@@ -125,5 +124,5 @@ class FitGrainsConfig(Config):
             if temp > 0:
                 return temp
         raise RuntimeError(
-            '"%s" must be > 0, true, or false, got "%s"' % (key, temp)
+            f'"{key}" must be > 0, true, or false, got "{temp}"'
             )

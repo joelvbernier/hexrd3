@@ -2,7 +2,7 @@ import numpy as np
 from numba import njit
 from hexrd.core import constants
 
-ap_2 = constants.SQUARE_HOMOCHORIC_RADIUS
+ap_2 = constants.CUBOCHORIC_SEMI_EDGE
 sc = constants.SC
 
 
@@ -14,19 +14,19 @@ def get_pyramid(xyz):
     if (np.abs(x) <= z) and (np.abs(y) <= z):
         return 1
 
-    elif (np.abs(x) <= -z) and (np.abs(y) <= -z):
+    if (np.abs(x) <= -z) and (np.abs(y) <= -z):
         return 2
 
-    elif (np.abs(z) <= x) and (np.abs(y) <= x):
+    if (np.abs(z) <= x) and (np.abs(y) <= x):
         return 3
 
-    elif (np.abs(z) <= -x) and (np.abs(y) <= -x):
+    if (np.abs(z) <= -x) and (np.abs(y) <= -x):
         return 4
 
-    elif (np.abs(x) <= y) and (np.abs(z) <= y):
+    if (np.abs(x) <= y) and (np.abs(z) <= y):
         return 5
 
-    elif (np.abs(x) <= -y) and (np.abs(z) <= -y):
+    if (np.abs(x) <= -y) and (np.abs(z) <= -y):
         return 6
 
 

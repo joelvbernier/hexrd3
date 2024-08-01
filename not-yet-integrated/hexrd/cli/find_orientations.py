@@ -126,7 +126,7 @@ def execute(args, parser):
     # prepare the analysis directory
     quats_f = os.path.join(
         cfg.working_dir,
-        'accepted_orientations_%s.dat' % cfg.analysis_id
+        f'accepted_orientations_{cfg.analysis_id}.dat'
         )
     if os.path.exists(quats_f) and not (args.force or args.clean):
         logger.error(
@@ -140,7 +140,7 @@ def execute(args, parser):
     # configure logging to file
     logfile = os.path.join(
         cfg.working_dir,
-        'find-orientations_%s.log' % cfg.analysis_id
+        f'find-orientations_{cfg.analysis_id}.log'
         )
     fh = logging.FileHandler(logfile, mode='w')
     fh.setLevel(log_level)

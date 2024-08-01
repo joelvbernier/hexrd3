@@ -68,7 +68,7 @@ def instrument_function(fn_desc):
         override = nvtx.profiled(full_name, color=color)(original)
         setattr(o, fn_name, override)
     except AttributeError:
-        warnings.warn('Could not instrument "{0}"'.format(full_name))
+        warnings.warn(f'Could not instrument "{full_name}"')
 
 
 

@@ -70,15 +70,14 @@ class ImageFilesImageSeriesAdapter(ImageSeriesAdapter):
         return ImageSeriesIterator(self)
 
     def __str__(self):
-        s = """==== imageseries from file list
-    fabio class: %s
-number of files: %s
-        nframes: %s
-          dtype: %s
-          shape: %s
-  single frames: %s
-     """ % (self.fabioclass, len(self._files), len(self),
-            self.dtype, self.shape, self.singleframes)
+        s = f"""==== imageseries from file list
+    fabio class: {self.fabioclass}
+number of files: {len(self._files)}
+        nframes: {len(self)}
+          dtype: {self.dtype}
+          shape: {self.shape}
+  single frames: {self.singleframes}
+     """
         return s
 
     @property
@@ -174,7 +173,7 @@ number of files: %s
         # allow for negatives (just use [nframes + key])
         nf = len(self)
         if key < -nf or key >= nf:
-            msg = "frame out of range: %s" % key
+            msg = f"frame out of range: {key}"
             raise LookupError(msg)
         k = key if key >= 0 else (nf + key)
 
@@ -252,17 +251,17 @@ class FileInfo(object):
         if self._maxframes == 0:
             self._maxframes = self._imgframes
         if self._empty >= self._imgframes:
-            msg = "more empty frames than images: %s" % self.filename
+            msg = f"more empty frames than images: {self.filename}"
             raise ValueError(msg)
 
     def __str__(self):
-        s = """==== image file
-       name: %s
-fabio class: %s
-     frames: %s
-      dtype: %s
-      shape: %s\n""" % (self.filename, self.fabioclass,
-                        self.nframes, self.dtype, self.shape)
+        s = f"""==== image file
+       name: {self.filename}
+fabio class: {self.fabioclass}
+     frames: {self.nframes}
+      dtype: {self.dtype}
+      shape: {self.shape}
+"""
 
         return s
 

@@ -85,7 +85,7 @@ def output_grain_map_vtk(data_location,data_stems,output_stem,vol_spacing,top_do
     f.write('POINTS %d double\n' % (num_pts))
     
     for i in np.arange(num_pts):
-        f.write('%e %e %e \n' %(Xslist[i],Yslist[i],Zslist[i]))
+        f.write(f'{Xslist[i]:e} {Yslist[i]:e} {Zslist[i]:e} \n')
     
     scale2=num_cols*num_rows
     scale1=num_cols    
@@ -120,7 +120,7 @@ def output_grain_map_vtk(data_location,data_stems,output_stem,vol_spacing,top_do
     f.write('FIELD FieldData 1 \n' )
     f.write('confidence 1 %d float \n' % (num_pts))       
     for i in np.arange(num_pts):
-        f.write('%e \n' %(conflist[i]))  
+        f.write(f'{conflist[i]:e} \n')  
         
     
     f.close()

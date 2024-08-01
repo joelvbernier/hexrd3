@@ -177,7 +177,7 @@ class WriteH5(Writer):
         # compression
         compress = self._opts.pop('gzip', self.dflt_gzip)
         if compress > 9:
-            raise ValueError('gzip compression cannot exceed 9: %s' % compress)
+            raise ValueError(f'gzip compression cannot exceed 9: {compress}')
         if compress > 0:
             d['compression'] = 'gzip'
             d['compression_opts'] = compress
@@ -255,12 +255,12 @@ class WriteFrameCache(Writer):
 
                 cdir = os.path.dirname(self._cache)
                 b = self._fname_base
-                fname = os.path.join(cdir, "%s-%s.npy" % (b, k))
+                fname = os.path.join(cdir, f"{b}-{k}.npy")
                 if not os.path.exists(fname):
                     np.save(fname, v)
 
                 # add trigger in yml file
-                d[k] = "! load-numpy-array %s" % fname
+                d[k] = f"! load-numpy-array {fname}"
             else:
                 d[k] = v
 

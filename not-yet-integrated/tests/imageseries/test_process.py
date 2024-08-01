@@ -13,7 +13,7 @@ class TestImageSeriesProcess(ImageSeriesTest):
         is_p = process.ProcessedImageSeries(is_a, ops)
         is_aflip = imageseries.open(None, 'array', data=aflip)
         diff = compare(is_aflip, is_p)
-        msg = "flipped [%s] image series failed" % flip
+        msg = f"flipped [{flip}] image series failed"
         self.assertAlmostEqual(diff, 0., msg=msg)
 
     def test_process(self):

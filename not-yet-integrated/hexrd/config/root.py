@@ -142,7 +142,7 @@ class RootConfig(Config):
             if not was_dirty:
                 self._dirty = False
             logger.info(
-                '"working_dir" not specified, defaulting to "%s"' % temp
+                f'"working_dir" not specified, defaulting to "{temp}"'
                 )
             return temp
 
@@ -150,7 +150,7 @@ class RootConfig(Config):
     def working_dir(self, val):
         val = os.path.abspath(val)
         if not os.path.isdir(val):
-            raise IOError('"working_dir": "%s" does not exist' % val)
+            raise IOError(f'"working_dir": "{val}" does not exist')
         self.set('working_dir', val)
 
     @property

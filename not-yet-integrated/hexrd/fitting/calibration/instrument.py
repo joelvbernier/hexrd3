@@ -176,9 +176,9 @@ class InstrumentCalibrator:
         else:
             logger.warning('no improvement in residual')
 
-        logger.info('normalized initial ssr: %.4e' % nrm_ssr_0)
-        logger.info('normalized final ssr: %.4e' % nrm_ssr_1)
-        logger.info('change in resdiual: %.4e' % delta_r)
+        logger.info(f'normalized initial ssr: {nrm_ssr_0:.4e}')
+        logger.info(f'normalized final ssr: {nrm_ssr_1:.4e}')
+        logger.info(f'change in resdiual: {delta_r:.4e}')
 
         self.params = result.params
         self.update_all_from_params(self.params)

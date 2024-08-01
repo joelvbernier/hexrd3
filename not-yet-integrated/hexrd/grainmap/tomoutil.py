@@ -30,7 +30,7 @@ def gen_bright_field(tbf_data_folder,tbf_img_start,tbf_num_imgs,nrows,ncols,stem
     print('Loading data for median bright field...')
     for ii in np.arange(tbf_num_imgs):
         print('Image #: ' + str(ii))
-        tbf_stack[ii,:,:]=imgio.imread(tbf_data_folder+'%s'%(stem)+str(tbf_img_nums[ii]).zfill(num_digits)+ext)
+        tbf_stack[ii,:,:]=imgio.imread(tbf_data_folder+f'{stem}'+str(tbf_img_nums[ii]).zfill(num_digits)+ext)
         #image_stack[ii,:,:]=np.flipud(tmp_img>threshold)
     print('making median...')
     
@@ -51,7 +51,7 @@ def gen_median_image(data_folder,img_start,num_imgs,nrows,ncols,stem='nf_',num_d
     print('Loading data for median image...')
     for ii in np.arange(num_imgs):
         print('Image #: ' + str(ii))
-        stack[ii,:,:]=imgio.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)
+        stack[ii,:,:]=imgio.imread(data_folder+f'{stem}'+str(img_nums[ii]).zfill(num_digits)+ext)
         #image_stack[ii,:,:]=np.flipud(tmp_img>threshold)
     print('making median...')
     
@@ -75,7 +75,7 @@ def gen_attenuation_rads(tomo_data_folder,tbf,tomo_img_start,tomo_num_imgs,nrows
     print('Loading and Calculating Absorption Radiographs ...')
     for ii in np.arange(tomo_num_imgs):
         print('Image #: ' + str(ii))
-        tmp_img=imgio.imread(tomo_data_folder+'%s'%(stem)+str(tomo_img_nums[ii]).zfill(num_digits)+ext)
+        tmp_img=imgio.imread(tomo_data_folder+f'{stem}'+str(tomo_img_nums[ii]).zfill(num_digits)+ext)
         
         rad_stack[ii,:,:]=-np.log((tmp_img.astype(float)-tdf)/(tbf.astype(float)-tdf))
         

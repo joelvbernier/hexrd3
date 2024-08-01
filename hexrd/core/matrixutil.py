@@ -37,14 +37,14 @@ import numba
 from hexrd.core import constants
 
 # module variables
-sqr6i = 1./np.sqrt(6.)
-sqr3i = 1./np.sqrt(3.)
-sqr2i = 1./np.sqrt(2.)
-sqr2 = np.sqrt(2.)
-sqr3 = np.sqrt(3.)
-sqr2b3 = np.sqrt(2./3.)
+sqr6i = 1.0 / np.sqrt(6.0)
+sqr3i = 1.0 / np.sqrt(3.0)
+sqr2i = 1.0 / np.sqrt(2.0)
+sqr2 = np.sqrt(2.0)
+sqr3 = np.sqrt(3.0)
+sqr2b3 = np.sqrt(2.0 / 3.0)
 
-tol = constants.EPSF
+tolerance = constants.EPSF
 v_tol = 100 * constants.EPSF
 
 
@@ -52,44 +52,42 @@ def unit_vector(a):
     """
     normalize array of column vectors (hstacked, axis = 0)
     """
-    assert a.ndim in [1, 2], \
-        "incorrect arg shape; must be 1-d or 2-d, yours is %d-d" % (a.ndim)
+    assert a.ndim in (
+        1,
+        2,
+    ), f"incorrect arg shape; must be 1-d or 2-d, yours is {a.ndim}-d"
+    a = np.asarray(a)
 
-    ztol = constants.TEN_EPSF
-
-    m = a.shape[0]
-
-    nrm = np.tile(np.sqrt(np.sum(np.asarray(a)**2, axis=0)), (m, 1))
+    norms = np.atleast_1d(np.linalg.norm(a, axis=0))
 
     # prevent divide by zero
-    nrm[nrm <= ztol] = 1.0
-    return a/nrm
+    norms[norms <= constants.TEN_EPSF] = 1.0
+    return a / norms
 
 
 def null_space(matrix, tol=v_tol):
     """
     computes the null space of the real matrix
     """
-    assert matrix.ndim == 2, \
-        'input must be 2-d; yours is %d-d' % (matrix.ndim)
+    assert matrix.ndim == 2, f"input must be 2-d; yours is {matrix.ndim}-d"
 
     n, m = matrix.shape
 
     if n > m:
         return null_space(matrix.T, tol).T
 
-    _, S, V = svd(matrix)
+    _, s, v = svd(matrix)
 
-    S = np.hstack([S, np.zeros(m - n)])
+    s = np.hstack([s, np.zeros(m - n)])
 
-    null_mask = (S <= tol)
+    null_mask = s <= tol
 
-    return V[null_mask, :]
+    return v[null_mask, :]
 
 
-def block_space_of_mat_array(mat_array):
+def mat_array_to_block_sparce(mat_array):
     """
-    blockSparseOfMatArray
+    mat_array_to_block_sparce
 
     Constructs a block diagonal sparse matrix (csc format) from a
     (p, m, n) ndarray of p (m, n) arrays
@@ -104,14 +102,11 @@ def block_space_of_mat_array(mat_array):
     if len(mat_array.shape) != 3:
         raise RuntimeError("input array is not the correct shape!")
 
-    p = mat_array.shape[0]
-    m = mat_array.shape[1]
-    n = mat_array.shape[2]
+    p, m, n = mat_array.shape
 
-    mn = m*n
-    jmax = p*n
-    imax = p*m
-    ntot = p*m*n
+    jmax = p * n
+    imax = p * m
+    ntot = p * m * n
 
     rl = np.arange(p)
     rm = np.arange(m)
@@ -119,8 +114,9 @@ def block_space_of_mat_array(mat_array):
 
     sij = mat_array.transpose(0, 2, 1).reshape(1, ntot).squeeze()
     j = np.reshape(np.tile(rjmax, (m, 1)).T, (1, ntot))
-    i = np.reshape(np.tile(rm, (1, jmax)), (1, ntot)) + \
-        np.reshape(np.tile(m*rl, (mn, 1)).T, (1, ntot))
+    i = np.reshape(np.tile(rm, (1, jmax)), (1, ntot)) + np.reshape(
+        np.tile(m * rl, (m * n, 1)).T, (1, ntot)
+    )
 
     ij = np.concatenate((i, j), axis=0)
 
@@ -139,7 +135,7 @@ def symm_to_vec_mv(matrix, scale=True):
     if scale:
         fac = sqr2
     else:
-        fac = 1.
+        fac = 1.0
     mvvec = np.zeros(6, dtype='float64')
     mvvec[0] = matrix[0, 0]
     mvvec[1] = matrix[1, 1]
@@ -158,7 +154,7 @@ def vec_mv_to_symm(vector, scale=True):
     if scale:
         fac = sqr2
     else:
-        fac = 1.
+        fac = 1.0
     symm_mat = np.zeros((3, 3), dtype='float64')
     symm_mat[0, 0] = vector[0]
     symm_mat[1, 1] = vector[1]
@@ -172,7 +168,7 @@ def vec_mv_to_symm(vector, scale=True):
     return symm_mat
 
 
-def vecMVCOBMatrix(R):
+def vec_mv_cob_matrix(rot):
     """
     GenerateS array of 6 x 6 basis transformation matrices for the
     Mandel-Voigt tensor representation in 3-D given by:
@@ -188,11 +184,11 @@ def vecMVCOBMatrix(R):
 
     USAGE
 
-        T = vecMVCOBMatrix(R)
+        T = vec_mv_cob_matrix(rot)
 
     INPUTS
 
-        1) R is (3, 3) an ndarray representing a change of basis matrix
+        1) rot is (3, 3) an ndarray representing a change of basis matrix
 
     OUTPUTS
 
@@ -209,19 +205,19 @@ def vecMVCOBMatrix(R):
 
     symmToVecMV, vecMVToSymm, quatToMat
     """
-    rdim = len(R.shape)
+    rdim = len(rot.shape)
     if rdim == 2:
         nrot = 1
-        R = np.tile(R, (1, 1, 1))
+        rot = np.tile(rot, (1, 1, 1))
     elif rdim == 3:
-        nrot = R.shape[0]
+        nrot = rot.shape[0]
     else:
         raise RuntimeError(
-            "R array must be (3, 3) or (n, 3, 3); input has dimension %d"
-            % (rdim)
+            "rot array must be (3, 3) or (n, 3, 3); "
+            f"input has dimension {rdim}"
         )
 
-    T = np.zeros((nrot, 6, 6), dtype='float64')
+    cob_mat = np.zeros((nrot, 6, 6), dtype='float64')
 
     for i in range(3):
         # Other two i values
@@ -230,48 +226,51 @@ def vecMVCOBMatrix(R):
             # Other two j values
             j1, j2 = [k for k in range(3) if k != j]
 
-            T[:, i, j] = R[:, i, j] ** 2
-            T[:, i, j + 3] = sqr2 * R[:, i, j1] * R[:, i, j2]
-            T[:, i + 3, j] = sqr2 * R[:, i1, j] * R[:, i2, j]
-            T[:, i + 3, j + 3] = (
-                R[:, i1, j1] * R[:, i2, j2] + R[:, i1, j2] * R[:, i2, j1]
+            cob_mat[:, i, j] = rot[:, i, j] ** 2
+            cob_mat[:, i, j + 3] = sqr2 * rot[:, i, j1] * rot[:, i, j2]
+            cob_mat[:, i + 3, j] = sqr2 * rot[:, i1, j] * rot[:, i2, j]
+            cob_mat[:, i + 3, j + 3] = (
+                rot[:, i1, j1] * rot[:, i2, j2]
+                + rot[:, i1, j2] * rot[:, i2, j1]
             )
 
-    return T.squeeze()
+    return cob_mat.squeeze()
 
 
-def nrmlProjOfVecMV(vec):
+def vec_mv_to_normal_projection(vec):
     """
     Gives vstacked p x 6 array to To perform n' * A * n as [N]*{A} for
     p hstacked input 3-vectors using the Mandel-Voigt convention.
 
-    Nvec = normalProjectionOfMV(vec)
+    Nvec = vec_mv_to_normal_projection(vec)
 
     *) the input vector array need not be normalized; it is performed in place
 
     """
     # normalize in place... col vectors!
-    n = unitVector(vec)
+    n = unit_vector(vec)
 
     nmat = np.array(
-        [n[0, :]**2,
-         n[1, :]**2,
-         n[2, :]**2,
-         sqr2 * n[1, :] * n[2, :],
-         sqr2 * n[0, :] * n[2, :],
-         sqr2 * n[0, :] * n[1, :]],
-        dtype='float64'
+        [
+            n[0, :] ** 2,
+            n[1, :] ** 2,
+            n[2, :] ** 2,
+            sqr2 * n[1, :] * n[2, :],
+            sqr2 * n[0, :] * n[2, :],
+            sqr2 * n[0, :] * n[1, :],
+        ],
+        dtype='float64',
     )
 
     return nmat.T
 
 
-def rankOneMatrix(vec1, *args):
+def rank_one_matrix(vec1, vec2=None):
     """
     Create rank one matrices (dyadics) from vectors.
 
-      r1mat = rankOneMatrix(vec1)
-      r1mat = rankOneMatrix(vec1, vec2)
+      r1mat = rank_one_matrix(vec1)
+      r1mat = rank_one_matrix(vec1, vec2)
 
       vec1 is m1 x n, an array of n hstacked m1 vectors
       vec2 is m2 x n, (optional) another array of n hstacked m2 vectors
@@ -290,15 +289,13 @@ def rankOneMatrix(vec1, *args):
     if len(vec1.shape) > 2:
         raise RuntimeError("input vec1 is the wrong shape")
 
-    if len(args) == 0:
+    if vec2 is None:
         vec2 = vec1.copy()
-    else:
-        vec2 = args[0]
-        if len(vec1.shape) > 2:
-            raise RuntimeError("input vec2 is the wrong shape")
+    elif len(vec2.shape) > 2:
+        raise RuntimeError("input vec2 is the wrong shape")
 
-    m1, n1 = np.asmatrix(vec1).shape
-    m2, n2 = np.asmatrix(vec2).shape
+    m1, n1 = np.atleast_2d(vec1).shape
+    m2, n2 = np.atleast_2d(vec2).shape
 
     if n1 != n2:
         raise RuntimeError("Number of vectors differ in arguments.")
@@ -307,7 +304,7 @@ def rankOneMatrix(vec1, *args):
 
     r1mat = np.zeros((m1m2, n1), dtype='float64')
 
-    mrange = np.asarray(list(range(m1)), dtype='int')
+    mrange = np.arange(m1)
 
     for i in range(m2):
         r1mat[mrange, :] = vec1 * np.tile(vec2[i, :], (m1, 1))
@@ -317,137 +314,127 @@ def rankOneMatrix(vec1, *args):
     return r1mat.squeeze()
 
 
-def skew(A):
+def skew(rot):
     """
     skew-symmetric decomposition of n square (m, m) ndarrays.  Result
     is a (squeezed) (n, m, m) ndarray
     """
-    A = np.asarray(A)
+    rot = np.asarray(rot)
 
-    if A.ndim == 2:
-        m = A.shape[0]
-        n = A.shape[1]
+    if rot.ndim == 2:
+        m = rot.shape[0]
+        n = rot.shape[1]
         if m != n:
             raise RuntimeError(
-                "this function only works for square arrays; yours is (%d, %d)"
-                % (m, n)
+                "this function only works for square arrays; "
+                f"yours is ({m}, {n})"
             )
-        A.resize(1, m, n)
-    elif A.ndim == 3:
-        m = A.shape[1]
-        n = A.shape[2]
+        rot.resize(1, m, n)
+    elif rot.ndim == 3:
+        m = rot.shape[1]
+        n = rot.shape[2]
         if m != n:
             raise RuntimeError("this function only works for square arrays")
     else:
         raise RuntimeError("this function only works for square arrays")
 
-    return np.squeeze(0.5*(A - A.transpose(0, 2, 1)))
+    return np.squeeze(0.5 * (rot - rot.transpose(0, 2, 1)))
 
 
-def symm(A):
+def symm(rot):
     """
     symmetric decomposition of n square (m, m) ndarrays.  Result
     is a (squeezed) (n, m, m) ndarray.
     """
-    A = np.asarray(A)
+    rot = np.asarray(rot)
 
-    if A.ndim == 2:
-        m = A.shape[0]
-        n = A.shape[1]
+    if rot.ndim == 2:
+        m = rot.shape[0]
+        n = rot.shape[1]
         if m != n:
             raise RuntimeError(
-                "this function only works for square arrays; yours is (%d, %d)"
-                % (m, n)
+                "this function only works for square arrays; "
+                f"yours is ({m}, {n})"
             )
-        A.resize(1, m, n)
-    elif A.ndim == 3:
-        m = A.shape[1]
-        n = A.shape[2]
+        rot.resize(1, m, n)
+    elif rot.ndim == 3:
+        m = rot.shape[1]
+        n = rot.shape[2]
         if m != n:
             raise RuntimeError("this function only works for square arrays")
     else:
         raise RuntimeError("this function only works for square arrays")
 
-    return np.squeeze(0.5*(A + A.transpose(0, 2, 1)))
+    return np.squeeze(0.5 * (rot + rot.transpose(0, 2, 1)))
 
 
-def skewMatrixOfVector(w):
+def vector_to_skew_matrix(w):
     """
-    skewMatrixOfVector(w)
+    vector_to_skew_matrix(w)
 
     given a (3, n) ndarray, w,  of n hstacked axial vectors, computes
     the associated skew matrices and stores them in an (n, 3, 3)
     ndarray.  Result is (3, 3) for w.shape = (3, 1) or (3, ).
 
-    See also: vectorOfSkewMatrix
+    See also: skew_matrix_to_vector
     """
     dims = w.ndim
     stackdim = 0
     if dims == 1:
         if len(w) != 3:
             raise RuntimeError('input is not a 3-d vector')
-        else:
-            w = np.vstack(w)
-            stackdim = 1
+        w = np.vstack(w)
+        stackdim = 1
     elif dims == 2:
         if w.shape[0] != 3:
             raise RuntimeError(
                 'input is of incorrect shape; expecting shape[0] = 3'
             )
-        else:
-            stackdim = w.shape[1]
+        stackdim = w.shape[1]
     else:
-        raise RuntimeError(
-            'input is incorrect shape; expecting ndim = 1 or 2'
-        )
+        raise RuntimeError('input is incorrect shape; expecting ndim = 1 or 2')
 
     zs = np.zeros((1, stackdim), dtype='float64')
-    W = np.vstack(
-        [zs,
-         -w[2, :],
-         w[1, :],
-         w[2, :],
-         zs,
-         -w[0, :],
-         -w[1, :],
-         w[0, :],
-         zs]
+    skew_mat = np.vstack(
+        [zs, -w[2, :], w[1, :], w[2, :], zs, -w[0, :], -w[1, :], w[0, :], zs]
     )
 
-    return np.squeeze(np.reshape(W.T, (stackdim, 3, 3)))
+    return np.squeeze(np.reshape(skew_mat.T, (stackdim, 3, 3)))
 
 
-def vectorOfSkewMatrix(W):
+def skew_matrix_to_vector(skew_mat):
     """
-    vectorOfSkewMatrix(W)
+    skew_matrix_to_vector(W)
 
     given an (n, 3, 3) or (3, 3) ndarray, W, of n stacked 3x3 skew
     matrices, computes the associated axial vector(s) and stores them
     in an (3, n) ndarray.  Result always has ndim = 2.
 
-    See also: skewMatrixOfVector
+    See also: vector_to_skew_matrix
     """
     stackdim = 0
-    if W.ndim == 2:
-        if W.shape[0] != 3 or W.shape[0] != 3:
+    if skew_mat.ndim == 2:
+        if skew_mat.shape[0] != 3 or skew_mat.shape[0] != 3:
             raise RuntimeError('input is not (3, 3)')
         stackdim = 1
-        W.resize(1, 3, 3)
-    elif W.ndim == 3:
-        if W.shape[1] != 3 or W.shape[2] != 3:
+        skew_mat.resize(1, 3, 3)
+    elif skew_mat.ndim == 3:
+        if skew_mat.shape[1] != 3 or skew_mat.shape[2] != 3:
             raise RuntimeError('input is not (3, 3)')
-        stackdim = W.shape[0]
+        stackdim = skew_mat.shape[0]
     else:
         raise RuntimeError('input is incorrect shape; expecting (n, 3, 3)')
 
     w = np.zeros((3, stackdim), dtype='float64')
     for i in range(stackdim):
-        w[:, i] = np.r_[-W[i, 1, 2], W[i, 0, 2], -W[i, 0, 1]]
+        w[:, i] = np.r_[
+            -skew_mat[i, 1, 2], skew_mat[i, 0, 2], -skew_mat[i, 0, 1]
+        ]
 
     return w
 
 
-def multMatArray(ma1, ma2):
+def mult_mat_array(ma1, ma2):
     """
     multiply two 3-d arrays of 2-d matrices
     """
@@ -473,13 +460,13 @@ def multMatArray(ma1, ma2):
     return prod
 
 
-def uniqueVectors(v, tol=1.0e-12):
+def unique_vectors(v, tol=1.0e-12):
     """
     Sort vectors and discard duplicates.
 
       USAGE:
 
-          uvec = uniqueVectors(vec, tol=1.0e-12)
+          uvec = unique_vectors(vec, tol=1.0e-12)
 
     v   --
     tol -- (optional) comparison tolerance
@@ -500,22 +487,22 @@ def uniqueVectors(v, tol=1.0e-12):
     #
     #  Dictionary sort from bottom up
     #
-    iNum = np.lexsort(iv)
-    ivSrt = iv[:, iNum]
-    vSrt = v[:, iNum]
+    i_num = np.lexsort(iv)
+    iv_srt = iv[:, i_num]
+    v_srt = v[:, i_num]
 
-    ivInd = np.zeros(vdims[1], dtype='int')
-    nUniq = 1
-    ivInd[0] = 0
+    iv_ind = np.zeros(vdims[1], dtype='int')
+    n_uniq = 1
+    iv_ind[0] = 0
     for col in range(1, vdims[1]):
-        if any(ivSrt[:, col] != ivSrt[:, col - 1]):
-            ivInd[nUniq] = col
-            nUniq += 1
+        if any(iv_srt[:, col] != iv_srt[:, col - 1]):
+            iv_ind[n_uniq] = col
+            n_uniq += 1
 
-    return vSrt[:, ivInd[0:nUniq]]
+    return v_srt[:, iv_ind[0:n_uniq]]
 
 
-def findDuplicateVectors_old(vec, tol=vTol, equivPM=False):
+def find_duplicate_vectors(vec, tol=v_tol, ignore_sign=False):
     """
     Find vectors in an array that are equivalent to within
     a specified tolerance
@@ -530,7 +517,7 @@ def findDuplicateVectors_old(vec, tol=vTol, equivPM=False):
                            n-dimensional vectors.
          *2) tol is 1 x 1, a scalar tolerance.  If not specified, the default
                            tolerance is 1e-14.
-         *3) set equivPM to True if vec and -vec
+         *3) set ignore_sign to True if vec and -vec
              are to be treated as equivalent
 
       OUTPUT:
@@ -552,71 +539,7 @@ def findDuplicateVectors_old(vec, tol=vTol, equivPM=False):
           eqv[0] = [0  4]
           eqv[1] = [1  3  5]
     """
-
-    vlen = vec.shape[1]
-    vlen0 = vlen
-    orid = np.asarray(list(range(vlen)), dtype="int")
-
-    torid = orid.copy()
-    tvec = vec.copy()
-
-    eqv = []
-    eqvTot = 0
-    uid = 0
-
-    ii = 1
-    while vlen > 1 and ii < vlen0:
-        dupl = np.tile(tvec[:, 0], (vlen, 1))
-
-        if not equivPM:
-            diff = abs(tvec - dupl.T).sum(0)
-            match = abs(diff[1:]) <= tol    # logical to find duplicates
-        else:
-            diffn = abs(tvec - dupl.T).sum(0)
-            matchn = abs(diffn[1:]) <= tol
-            diffp = abs(tvec + dupl.T).sum(0)
-            matchp = abs(diffp[1:]) <= tol
-            match = matchn + matchp
-
-        kick = np.hstack([True, match])    # pick self too
-
-        if kick.sum() > 1:
-            eqv += [torid[kick].tolist()]
-            eqvTot = np.hstack([eqvTot, torid[kick]])
-            uid = np.hstack([uid, torid[kick][0]])
-
-        cmask = np.ones((vlen,))
-        cmask[kick] = 0
-        cmask = cmask != 0
-
-        tvec = tvec[:, cmask]
-
-        torid = torid[cmask]
-
-        vlen = tvec.shape[1]
-
-        ii += 1
-
-    if len(eqv) == 0:
-        eqvTot = []
-        uid = []
-    else:
-        eqvTot = eqvTot[1:].tolist()
-        uid = uid[1:].tolist()
-
-    # find all single-instance vectors
-    singles = np.sort(np.setxor1d(eqvTot, list(range(vlen0))))
-
-    # now construct list of unique vector column indices
-    uid = np.int_(np.sort(np.union1d(uid, singles))).tolist()
-    # make sure is a 1D list
-    if not hasattr(uid, '__len__'):
-        uid = [uid]
-
-    return eqv, uid
-
-def findDuplicateVectors(vec, tol=vTol, equivPM=False):
-    eqv = _findduplicatevectors(vec, tol, equivPM)
+    eqv = _find_duplicate_vectors(vec, tol, ignore_sign)
     uid = np.arange(0, vec.shape[1], dtype=np.int64)
     mask = ~np.isnan(eqv)
     idx = eqv[mask].astype(np.int64)
@@ -630,48 +553,9 @@ def findDuplicateVectors(vec, tol=vTol, equivPM=False):
 
 
 @numba.njit(cache=True, nogil=True)
-def _findduplicatevectors(vec, tol, equivPM):
-    """
-    Find vectors in an array that are equivalent to within
-    a specified tolerance. code is accelerated by numba
-
-      USAGE:
-
-          eqv = DuplicateVectors(vec, *tol)
-
-      INPUT:
-
-          1) vec is n x m, a double array of m horizontally concatenated
-                           n-dimensional vectors.
-         *2) tol is 1 x 1, a scalar tolerance.  If not specified, the default
-                           tolerance is 1e-14.
-         *3) set equivPM to True if vec and -vec
-             are to be treated as equivalent
-
-      OUTPUT:
-
-          1) eqv is 1 x p, a list of p equivalence relationships.
-
-      NOTES:
-
-          Each equivalence relationship is a 1 x q vector of indices that
-          represent the locations of duplicate columns/entries in the array
-          vec.  For example:
-
-                | 1     2     2     2     1     2     7 |
-          vec = |                                       |
-                | 2     3     5     3     2     3     3 |
-
-          eqv = [[1x2 double]    [1x3 double]], where
-
-          eqv[0] = [0  4]
-          eqv[1] = [1  3  5]
-    """
-
-    if equivPM:
+def _find_duplicate_vectors(vec, tol, ignore_sign):
+    if ignore_sign:
         vec2 = -vec.copy()
-
-    n = vec.shape[0]
     m = vec.shape[1]
 
     eqv = np.zeros((m, m), dtype=np.float64)
@@ -680,18 +564,18 @@ def _findduplicatevectors(vec, tol, equivPM):
 
     for ii in range(m):
         ctr = 0
-        eqv_elem = np.zeros((m, ), dtype=np.int64)
-        for jj in range(ii+1, m):
+        eqv_elem = np.zeros((m,), dtype=np.int64)
+        for jj in range(ii + 1, m):
             if not jj in eqv_elem_master:
-                if equivPM:
-                    diff  = np.sum(np.abs(vec[:, ii]-vec2[:, jj]))
-                    diff2 = np.sum(np.abs(vec[:, ii]-vec[:, jj]))
+                if ignore_sign:
+                    diff = np.sum(np.abs(vec[:, ii] - vec2[:, jj]))
+                    diff2 = np.sum(np.abs(vec[:, ii] - vec[:, jj]))
                     if diff < tol or diff2 < tol:
                         eqv_elem[ctr] = jj
                         eqv_elem_master.append(jj)
                         ctr += 1
                 else:
-                    diff = np.sum(np.abs(vec[:, ii]-vec[:, jj]))
+                    diff = np.sum(np.abs(vec[:, ii] - vec[:, jj]))
                     if diff < tol:
                         eqv_elem[ctr] = jj
                         eqv_elem_master.append(jj)
@@ -703,84 +587,74 @@ def _findduplicatevectors(vec, tol, equivPM):
     return eqv
 
 
-normvec = normvec3 = np.linalg.norm
-cross = np.cross
-determinant3 = np.linalg.det
-trace3 = np.trace
+def strain_ten_to_vec(strain_ten):
+    strain_vec = np.zeros(6, dtype='float64')
+    strain_vec[0] = strain_ten[0, 0]
+    strain_vec[1] = strain_ten[1, 1]
+    strain_vec[2] = strain_ten[2, 2]
+    strain_vec[3] = 2 * strain_ten[1, 2]
+    strain_vec[4] = 2 * strain_ten[0, 2]
+    strain_vec[5] = 2 * strain_ten[0, 1]
+    strain_vec = np.atleast_2d(strain_vec).T
+    return strain_vec
 
 
-def normalized(v):
-    return v / normvec(v)
+def strain_vec_to_ten(strain_vec):
+    strain_ten = np.zeros((3, 3), dtype='float64')
+    strain_ten[0, 0] = strain_vec[0]
+    strain_ten[1, 1] = strain_vec[1]
+    strain_ten[2, 2] = strain_vec[2]
+    strain_ten[1, 2] = strain_vec[3] / 2.0
+    strain_ten[0, 2] = strain_vec[4] / 2.0
+    strain_ten[0, 1] = strain_vec[5] / 2.0
+    strain_ten[2, 1] = strain_vec[3] / 2.0
+    strain_ten[2, 0] = strain_vec[4] / 2.0
+    strain_ten[1, 0] = strain_vec[5] / 2.0
+    return strain_ten
 
 
-def strainTenToVec(strainTen):
-    strainVec = np.zeros(6, dtype='float64')
-    strainVec[0] = strainTen[0, 0]
-    strainVec[1] = strainTen[1, 1]
-    strainVec[2] = strainTen[2, 2]
-    strainVec[3] = 2*strainTen[1, 2]
-    strainVec[4] = 2*strainTen[0, 2]
-    strainVec[5] = 2*strainTen[0, 1]
-    strainVec = np.atleast_2d(strainVec).T
-    return strainVec
+def stress_ten_to_vec(stress_ten):
+    stress_vec = np.zeros(6, dtype='float64')
+    stress_vec[0] = stress_ten[0, 0]
+    stress_vec[1] = stress_ten[1, 1]
+    stress_vec[2] = stress_ten[2, 2]
+    stress_vec[3] = stress_ten[1, 2]
+    stress_vec[4] = stress_ten[0, 2]
+    stress_vec[5] = stress_ten[0, 1]
+    stress_vec = np.atleast_2d(stress_vec).T
+    return stress_vec
 
 
-def strainVecToTen(strainVec):
-    strainTen = np.zeros((3, 3), dtype='float64')
-    strainTen[0, 0] = strainVec[0]
-    strainTen[1, 1] = strainVec[1]
-    strainTen[2, 2] = strainVec[2]
-    strainTen[1, 2] = strainVec[3] / 2.
-    strainTen[0, 2] = strainVec[4] / 2.
-    strainTen[0, 1] = strainVec[5] / 2.
-    strainTen[2, 1] = strainVec[3] / 2.
-    strainTen[2, 0] = strainVec[4] / 2.
-    strainTen[1, 0] = strainVec[5] / 2.
-    return strainTen
+def stress_vec_to_ten(stress_vec):
+
+    stress_ten = np.zeros((3, 3), dtype='float64')
+    stress_ten[0, 0] = stress_vec[0]
+    stress_ten[1, 1] = stress_vec[1]
+    stress_ten[2, 2] = stress_vec[2]
+    stress_ten[1, 2] = stress_vec[3]
+    stress_ten[0, 2] = stress_vec[4]
+    stress_ten[0, 1] = stress_vec[5]
+    stress_ten[2, 1] = stress_vec[3]
+    stress_ten[2, 0] = stress_vec[4]
+    stress_ten[1, 0] = stress_vec[5]
+
+    return stress_ten
 
 
-def stressTenToVec(stressTen):
-    stressVec = np.zeros(6, dtype='float64')
-    stressVec[0] = stressTen[0, 0]
-    stressVec[1] = stressTen[1, 1]
-    stressVec[2] = stressTen[2, 2]
-    stressVec[3] = stressTen[1, 2]
-    stressVec[4] = stressTen[0, 2]
-    stressVec[5] = stressTen[0, 1]
-    stressVec = np.atleast_2d(stressVec).T
-    return stressVec
-
-
-def stressVecToTen(stressVec):
-
-    stressTen = np.zeros((3, 3), dtype='float64')
-    stressTen[0, 0] = stressVec[0]
-    stressTen[1, 1] = stressVec[1]
-    stressTen[2, 2] = stressVec[2]
-    stressTen[1, 2] = stressVec[3]
-    stressTen[0, 2] = stressVec[4]
-    stressTen[0, 1] = stressVec[5]
-    stressTen[2, 1] = stressVec[3]
-    stressTen[2, 0] = stressVec[4]
-    stressTen[1, 0] = stressVec[5]
-
-    return stressTen
-
-
-def ale3dStrainOutToV(vecds):
+def ale_3d_strain_out_to_symm_mat(vecds):
     """
     convert from vecds representation to symmetry matrix
     takes 5 components of evecd and the 6th component is lndetv
     """
     eps = np.zeros([3, 3], dtype='float64')
-    # Akk_by_3 = sqr3i * vecds[5]  # -p
-    a = np.exp(vecds[5])**(1./3.)  # -p
-    t1 = sqr2i*vecds[0]
-    t2 = sqr6i*vecds[1]
+
+    a = np.exp(vecds[5]) ** (1.0 / 3.0)  # -p
+    t1 = sqr2i * vecds[0]
+    t2 = sqr6i * vecds[1]
 
     eps[0, 0] = t1 - t2
     eps[1, 1] = -t1 - t2
-    eps[2, 2] = sqr2b3*vecds[1]
+    eps[2, 2] = sqr2b3 * vecds[1]
     eps[1, 0] = vecds[2] * sqr2i
     eps[2, 0] = vecds[3] * sqr2i
     eps[2, 1] = vecds[4] * sqr2i
@@ -789,51 +663,51 @@ def ale3dStrainOutToV(vecds):
     eps[0, 2] = eps[2, 0]
     eps[1, 2] = eps[2, 1]
 
-    epstar = eps/a
+    epstar = eps / a
 
-    V = (constants.identity_3x3 + epstar)*a
-    Vinv = (constants.identity_3x3 - epstar)/a
+    v = (np.eye(3) + epstar) * a
+    v_inv = (np.eye(3) - epstar) / a
 
-    return V, Vinv
+    return v, v_inv
 
 
-def vecdsToSymm(vecds):
+def vecds_to_symm_mat(vecds):
     """convert from vecds representation to symmetry matrix"""
-    A = np.zeros([3, 3], dtype='float64')
-    Akk_by_3 = sqr3i * vecds[5]  # -p
-    t1 = sqr2i*vecds[0]
-    t2 = sqr6i*vecds[1]
+    sym = np.zeros([3, 3], dtype='float64')
+    akk_by_3 = sqr3i * vecds[5]  # -p
+    t1 = sqr2i * vecds[0]
+    t2 = sqr6i * vecds[1]
 
-    A[0, 0] = t1 - t2 + Akk_by_3
-    A[1, 1] = -t1 - t2 + Akk_by_3
-    A[2, 2] = sqr2b3*vecds[1] + Akk_by_3
-    A[1, 0] = vecds[2] * sqr2i
-    A[2, 0] = vecds[3] * sqr2i
-    A[2, 1] = vecds[4] * sqr2i
+    sym[0, 0] = t1 - t2 + akk_by_3
+    sym[1, 1] = -t1 - t2 + akk_by_3
+    sym[2, 2] = sqr2b3 * vecds[1] + akk_by_3
+    sym[1, 0] = vecds[2] * sqr2i
+    sym[2, 0] = vecds[3] * sqr2i
+    sym[2, 1] = vecds[4] * sqr2i
 
-    A[0, 1] = A[1, 0]
-    A[0, 2] = A[2, 0]
-    A[1, 2] = A[2, 1]
-    return A
-
-
-def traceToVecdsS(Akk):
-    return sqr3i * Akk
+    sym[0, 1] = sym[1, 0]
+    sym[0, 2] = sym[2, 0]
+    sym[1, 2] = sym[2, 1]
+    return sym
 
 
-def vecdsSToTrace(vecdsS):
-    return vecdsS * sqr3
+def trace_to_vecds_s(akk):
+    return sqr3i * akk
 
 
-def symmToVecds(A):
+def vecds_s_to_trace(vecds_s):
+    return vecds_s * sqr3
+
+
+def symm_to_vecds(sym):
     """convert from symmetry matrix to vecds representation"""
     vecds = np.zeros(6, dtype='float64')
-    vecds[0] = sqr2i * (A[0, 0] - A[1, 1])
-    vecds[1] = sqr6i * (2. * A[2, 2] - A[0, 0] - A[1, 1])
-    vecds[2] = sqr2 * A[1, 0]
-    vecds[3] = sqr2 * A[2, 0]
-    vecds[4] = sqr2 * A[2, 1]
-    vecds[5] = traceToVecdsS(trace3(A))
+    vecds[0] = sqr2i * (sym[0, 0] - sym[1, 1])
+    vecds[1] = sqr6i * (2.0 * sym[2, 2] - sym[0, 0] - sym[1, 1])
+    vecds[2] = sqr2 * sym[1, 0]
+    vecds[3] = sqr2 * sym[2, 0]
+    vecds[4] = sqr2 * sym[2, 1]
+    vecds[5] = trace_to_vecds_s(np.trace(sym))
     return vecds
 
 
@@ -872,16 +746,19 @@ def solve_wahba(v, w, weights=None):
     w = np.atleast_2d(w)
 
     # compute weighted outer product sum
-    B = np.zeros((3, 3))
+    weighted_ops = np.zeros((3, 3))
     for i in range(n_vecs):
-        B += weights[i]*np.dot(w[i].reshape(3, 1), v[i].reshape(1, 3))
+        weighted_ops += weights[i] * np.dot(
+            w[i].reshape(3, 1), v[i].reshape(1, 3)
+        )
 
     # compute svd
-    Us, _, VsT = svd(B)
+    us, _, vs_t = svd(weighted_ops)
 
     # form diagonal matrix for solution
-    M = np.diag([1., 1., np.linalg.det(Us)*np.linalg.det(VsT)])
-    return np.dot(Us, np.dot(M, VsT))
+    m = np.diag([1.0, 1.0, np.linalg.det(us) * np.linalg.det(vs_t)])
+    return np.dot(us, np.dot(m, vs_t))
+
 
 # =============================================================================
 # Numba-fied frame cache writer

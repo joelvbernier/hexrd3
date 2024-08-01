@@ -93,7 +93,7 @@ def _set_peak_center_bounds(params, window_range, min_sep=0.01):
         if len(uvec) < npks:
             raise RuntimeError(
                 "Params contain peaks separated by <="
-                + " the specified min, %f" % min_sep
+                + f" the specified min, {min_sep:f}"
             )
 
         # get the sorted indices

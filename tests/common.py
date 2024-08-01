@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-import hexrd.constants as ct
+import hexrd.core.constants as ct
 
 
 def convert_axis_angle_to_rmat(axis, angle):
@@ -14,11 +14,11 @@ def convert_axis_angle_to_rmat(axis, angle):
     axis = np.array(axis, dtype=float)
     assert axis.shape == (3,)
 
-    if abs(angle) < ct.epsf:
-        return ct.identity_3x3
+    if abs(angle) < ct.EPSF:
+        return np.eye(3)
 
     axis_norm = np.linalg.norm(axis)
-    if axis_norm < ct.epsf:
+    if axis_norm < ct.EPSF:
         raise ValueError("axis is zero")
 
     axis /= axis_norm

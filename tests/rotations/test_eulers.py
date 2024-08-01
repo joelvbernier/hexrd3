@@ -2,7 +2,7 @@ from scipy.spatial.transform import Rotation as R
 
 import numpy as np
 
-from hexrd import rotations
+from hexrd.core import rotations
 
 
 def random_rot_mat_euler():
@@ -74,7 +74,7 @@ def test_vals_from_rot_mat_euler():
         # rotation matrices (note expmap representations are not unique,
         # but rotation matrix rotations are)
         exp_map = rot.exponential_map
-        rot_from_expmap = rotations.rotMatOfExpMap(exp_map)
+        rot_from_expmap = rotations.exp_map_to_rot_mat(exp_map)
         assert np.allclose(rot_from_expmap, rot.rmat)
 
 

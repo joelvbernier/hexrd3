@@ -679,7 +679,7 @@ class Detector:
 
         """
         assert style.lower() in ['yaml', 'hdf5'], (
-            "style must be either 'yaml', or 'hdf5'; you gave '%s'" % style
+            f"style must be either 'yaml', or 'hdf5'; you gave '{style}'"
         )
 
         config_dict = {}

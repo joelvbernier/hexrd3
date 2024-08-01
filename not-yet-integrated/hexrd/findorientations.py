@@ -81,8 +81,7 @@ def generate_orientation_fibers(cfg, eta_ome):
     #       default values for each case?  They must be specified as of now.
     method = next(iter(method_dict.keys()))
     method_kwargs = method_dict[method]
-    logger.info('\tusing "%s" method for fiber generation'
-                % method)
+    logger.info(f'\tusing "{method}" method for fiber generation')
 
     # crystallography data from the pd object
     pd = eta_ome.planeData
@@ -332,7 +331,7 @@ def run_cluster(compl, qfib, qsym, cfg,
                 )
         else:
             raise RuntimeError(
-                "Clustering algorithm %s not recognized" % algorithm
+                f"Clustering algorithm {algorithm} not recognized"
                 )
 
         # extract number of clusters
