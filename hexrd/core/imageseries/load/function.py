@@ -4,6 +4,8 @@ and returns a 2D numpy array.
 from . import ImageSeriesAdapter
 from ..imageseriesiter import ImageSeriesIterator
 
+import numpy as np
+
 
 class FunctionImageSeriesAdapter(ImageSeriesAdapter):
     """Collection of Images in numpy array
@@ -46,12 +48,15 @@ class FunctionImageSeriesAdapter(ImageSeriesAdapter):
     def dtype(self):
         return self._dtype
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: int) -> np.ndarray:
         if not isinstance(key, int):
-            msg = f'Only int keys are supported, but "{key}" was provided'
-            raise Exception(msg)
+            raise TypeError(f"Key must be an integer, but received {type(key).__name__}.")
+
+        if key < 0 or key >= self._nframes:
+            raise IndexError(f"Index {key} is out of bounds for axis 0 with size {self._nframes}.")
 
         return self._func(key)
+
 
     def __iter__(self):
         return ImageSeriesIterator(self)
