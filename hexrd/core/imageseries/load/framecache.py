@@ -1,131 +1,147 @@
-"""Adapter class for frame caches
-"""
 import os
-
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix  # type: ignore
 import yaml
+from typing import Dict, Set
 
 from . import ImageSeriesAdapter
 from ..imageseriesiter import ImageSeriesIterator
 from .metadata import yamlmeta
 
+
 class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
-    """collection of images in HDF5 format"""
+    """Adapter for handling image series stored in frame cache format."""
 
     format = 'frame-cache'
 
-    def __init__(self, fname, style='npz', **kwargs):
-        """Constructor for frame cache image series
+    def __init__(self, filename: str, style: str = 'npz', **kwargs):
+        """Initialize the FrameCacheImageSeriesAdapter.
 
-        *fname* - filename of the yml file
-        *kwargs* - keyword arguments (none required)
+        Args:
+            filename (str): The path to the frame cache or YAML file.
+            style (str): The format style, either 'npz' or 'yaml'.
         """
-        self._fname = fname
+        self._filename: str = filename
+        self._meta: Dict[str, any] = {}
+
         if style.lower() in ('yml', 'yaml', 'test'):
-            self._load_yml()
-            self._load_cache(from_yml=True)
+            self._load_metadata_from_yaml()
+            self._load_cache(from_yaml=True)
         else:
             self._load_cache()
 
-    def _load_yml(self):
-        with open(self._fname, "r") as f:
-            d = yaml.safe_load(f)  # Use safe_load to avoid the missing loader issue
-        datad = d['data']
-        self._cache = datad['file']
-        self._nframes = datad['nframes']
-        self._shape = tuple(datad['shape'])
-        self._dtype = np.dtype(datad['dtype'])
-        self._meta = yamlmeta(d['meta'], path=self._cache)
+    def _load_metadata_from_yaml(self) -> None:
+        """Load metadata from a YAML file."""
+        with open(self._filename, "r") as file:
+            data = yaml.safe_load(file)
+        data_info = data['data']
+        self._cache_file: str = data_info['file']
+        self._nframes: int = data_info['nframes']
+        self._shape: tuple = tuple(data_info['shape'])
+        self._dtype: np.dtype = np.dtype(data_info['dtype'])
+        self._meta: Dict[str, any] = yamlmeta(data['meta'], path=self._cache_file)
 
-    def _load_cache(self, from_yml=False):
-        """load into list of csr sparse matrices"""
-        self._framelist = []
-        if from_yml:
-            bpath = os.path.dirname(self._fname)
-            if os.path.isabs(self._cache):
-                cachepath = self._cache
-            else:
-                cachepath = os.path.join(bpath, self._cache)
-            arrs = np.load(cachepath)
+    def _load_cache(self, from_yaml: bool = False) -> None:
+        """Load frame data into a list of CSR sparse matrices.
 
-            for i in range(self._nframes):
-                row = arrs["%d_row" % i]
-                col = arrs["%d_col" % i]
-                data = arrs["%d_data" % i]
-                frame = csr_matrix((data, (row, col)),
-                                shape=self._shape, dtype=self._dtype)
-                self._framelist.append(frame)
-        else:
-            arrs = np.load(self._fname)
-            keysd = dict.fromkeys(list(arrs.keys()))
-            self._nframes = int(arrs['nframes'])
-            self._shape = tuple(arrs['shape'])
+        Args:
+            from_yaml (bool): Whether the cache is being loaded from a YAML file.
+        """
+        self._frames: list = []
+        cache_path: str = self._get_cache_path(from_yaml)
 
-            # Check if dtype is a scalar or array, and handle accordingly
-            dtype_value = arrs['dtype']
-            if isinstance(dtype_value, np.ndarray):
-                # If it's an array, extract the first element
-                dtype_value = dtype_value.item()  # Safely extract scalar
+        array_data = np.load(cache_path)
+        self._nframes: int = int(array_data['nframes'])
+        self._shape: tuple = tuple(array_data['shape'])
+        self._dtype: np.dtype = (
+            np.dtype(array_data['dtype'].item())
+            if isinstance(array_data['dtype'], np.ndarray)
+            else np.dtype(array_data['dtype'])
+        )
 
-            self._dtype = np.dtype(dtype_value)  # Pass scalar or string to np.dtype
+        for i in range(self._nframes):
+            row = array_data[f"{i}_row"]
+            col = array_data[f"{i}_col"]
+            data = array_data[f"{i}_data"]
+            frame = csr_matrix(
+                (data, (row, col)), shape=self._shape, dtype=self._dtype
+            )
+            self._frames.append(frame)
 
-            keysd.pop('nframes')
-            keysd.pop('shape')
-            keysd.pop('dtype')
-            for i in range(self._nframes):
-                row = arrs["%d_row" % i]
-                col = arrs["%d_col" % i]
-                data = arrs["%d_data" % i]
-                keysd.pop("%d_row" % i)
-                keysd.pop("%d_col" % i)
-                keysd.pop("%d_data" % i)
-                frame = csr_matrix((data, (row, col)),
-                                shape=self._shape,
-                                dtype=self._dtype)
-                self._framelist.append(frame)
-            # all remaining keys should be metadata
-            for key in keysd:
-                keysd[key] = arrs[key]
-            self._meta = keysd
+        if not from_yaml:
+            self._meta = {
+                key: array_data[key]
+                for key in array_data
+                if key not in self._get_frame_keys()
+            }
+
+    def _get_cache_path(self, from_yaml: bool) -> str:
+        """Get the full path to the cache file.
+
+        Args:
+            from_yaml (bool): Whether the path is derived from a YAML file.
+
+        Returns:
+            str: The full path to the cache file.
+        """
+        if from_yaml:
+            base_path: str = os.path.dirname(self._filename)
+            return (
+                os.path.join(base_path, self._cache_file)
+                if not os.path.isabs(self._cache_file)
+                else self._cache_file
+            )
+        return self._filename
+
+    def _get_frame_keys(self) -> Set[str]:
+        """Generate keys used for frames in the NPZ file.
+
+        Returns:
+            set: A set of keys related to frame data.
+        """
+        keys: Set[str] = set()
+        for i in range(self._nframes):
+            keys.update({f"{i}_row", f"{i}_col", f"{i}_data"})
+        return keys
 
     @property
-    def metadata(self):
-        """(read-only) Image sequence metadata
-        """
+    def metadata(self) -> Dict[str, any]:
+        """dict: Image sequence metadata."""
         return self._meta
 
-    def load_metadata(self, indict):
-        """(read-only) Image sequence metadata
-
-        Currently returns none
-        """
-        # TODO: Remove this. Currently not used;
-        # saved temporarily for np.array trigger
-        metad = {}
-        for k, v in list(indict.items()):
-            if v == '++np.array':
-                newk = k + '-array'
-                metad[k] = np.array(indict.pop(newk))
-                metad.pop(newk, None)
-            else:
-                metad[k] = v
-        return metad
-
     @property
-    def dtype(self):
+    def dtype(self) -> np.dtype:
+        """numpy.dtype: Data type of the frames."""
         return self._dtype
 
     @property
-    def shape(self):
+    def shape(self) -> tuple:
+        """tuple: Shape of the frames."""
         return self._shape
 
-    def __getitem__(self, key):
-        return self._framelist[key].toarray()
+    def __getitem__(self, index: int) -> np.ndarray:
+        """Retrieve a frame by its index.
 
-    def __iter__(self):
+        Args:
+            index (int): Index of the frame to retrieve.
+
+        Returns:
+            numpy.ndarray: The requested frame as a dense array.
+        """
+        return self._frames[index].toarray()
+
+    def __iter__(self) -> ImageSeriesIterator:
+        """Return an iterator over the frames.
+
+        Returns:
+            ImageSeriesIterator: Iterator over the image series.
+        """
         return ImageSeriesIterator(self)
 
-    #@memoize
-    def __len__(self):
+    def __len__(self) -> int:
+        """Return the number of frames in the series.
+
+        Returns:
+            int: Number of frames.
+        """
         return self._nframes
