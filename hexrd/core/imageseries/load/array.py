@@ -30,7 +30,13 @@ class ArrayImageSeriesAdapter(ImageSeriesAdapter):
         ----------
         format : str
             Specifies the format of the data. In this case, it is set to 'array'.
-        
+        metadata : dict
+            The metadata associated with the image series.
+        shape : tuple
+            The shape of each image in the series (excluding the frame count).
+        dtype : numpy.dtype
+            The data type of the images in the series.
+
         Raises
         ------
         ValueError
