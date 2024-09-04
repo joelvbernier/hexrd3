@@ -30,7 +30,7 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
 
     def _load_yml(self):
         with open(self._fname, "r") as f:
-            d = yaml.load(f)
+            d = yaml.safe_load(f)  # Use safe_load to avoid the missing loader issue
         datad = d['data']
         self._cache = datad['file']
         self._nframes = datad['nframes']
@@ -54,27 +54,22 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
                 col = arrs["%d_col" % i]
                 data = arrs["%d_data" % i]
                 frame = csr_matrix((data, (row, col)),
-                                   shape=self._shape, dtype=self._dtype)
+                                shape=self._shape, dtype=self._dtype)
                 self._framelist.append(frame)
         else:
             arrs = np.load(self._fname)
-            # HACK: while the loaded npz file has a getitem method
-            # that mimicks a dict, it doesn't have a "pop" method.
-            # must make an empty dict to pop after assignment of
-            # class attributes so we can get to the metadata
             keysd = dict.fromkeys(list(arrs.keys()))
             self._nframes = int(arrs['nframes'])
             self._shape = tuple(arrs['shape'])
-            # Check the type so we can read files written
-            # using Python 2.7
-            array_dtype = arrs['dtype'].dtype
-            # Python 3
-            if array_dtype.type == np.str_:
-                dtype_str = str(arrs['dtype'])
-            # Python 2.7
-            else:
-                dtype_str = arrs['dtype'].tobytes().decode()
-            self._dtype = np.dtype(dtype_str)
+
+            # Check if dtype is a scalar or array, and handle accordingly
+            dtype_value = arrs['dtype']
+            if isinstance(dtype_value, np.ndarray):
+                # If it's an array, extract the first element
+                dtype_value = dtype_value.item()  # Safely extract scalar
+
+            self._dtype = np.dtype(dtype_value)  # Pass scalar or string to np.dtype
+
             keysd.pop('nframes')
             keysd.pop('shape')
             keysd.pop('dtype')
@@ -86,14 +81,13 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
                 keysd.pop("%d_col" % i)
                 keysd.pop("%d_data" % i)
                 frame = csr_matrix((data, (row, col)),
-                                   shape=self._shape,
-                                   dtype=self._dtype)
+                                shape=self._shape,
+                                dtype=self._dtype)
                 self._framelist.append(frame)
-            # all rmaining keys should be metadata
+            # all remaining keys should be metadata
             for key in keysd:
                 keysd[key] = arrs[key]
             self._meta = keysd
-
 
     @property
     def metadata(self):
