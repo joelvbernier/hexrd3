@@ -111,6 +111,9 @@ class RawImageSeriesAdapter(ImageSeriesAdapter):
         return ImageSeriesIterator(self)
 
     def __getitem__(self, key):
+        if key < 0 or key >= len(self):
+            raise IndexError(f"Index {key} out of range for image series with length {len(self)}")
+        
         count = key * self._frame_bytes + self.skipbytes
 
         # Ensure reading a frame the file is thread-safe
