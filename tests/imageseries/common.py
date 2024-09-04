@@ -1,17 +1,15 @@
 import numpy as np
-import unittest
-
 from hexrd.core import imageseries
 
 _NFXY = (3, 7, 5)
 
 
-class ImageSeriesTest(unittest.TestCase):
+class ImageSeriesTest:
+    """Base class for shared test setup or methods."""
     pass
 
 
 # random array from randint
-# a = np.random.randint(20, size=(3, 5, 7))
 random_array = np.array(
     [[[2,  4,  5,  0, 14, 16, 17],
       [18, 17,  5, 19,  2,  8, 17],
@@ -22,7 +20,7 @@ random_array = np.array(
      [[8, 17, 15,  0,  0,  5, 17],
       [7,  4,  8, 17,  2,  5,  3],
       [14,  1, 12,  4,  6, 19,  2],
-      [13,  7,  5,  6, 17, 17,  6],
+      [13,  7,  5,  6, 17,  17,  6],
       [16,  4, 10,  3,  6,  0, 14]],
 
      [[17,  3,  8,  3, 15,  6, 18],
@@ -34,7 +32,7 @@ random_array = np.array(
 
 
 def make_array_ims():
-    """returns both the array and the array imageseries"""
+    """Returns both the array and the array imageseries."""
     is_a = imageseries.open(
         None, 'array', data=random_array, meta=make_meta()
     )
@@ -42,23 +40,23 @@ def make_array_ims():
 
 
 def make_meta():
-    md = {'testing': '1,2,3'}
+    """Create sample metadata for testing."""
     return {'testing': np.array([1, 2, 3])}
 
 
 def make_omega_meta(n):
-    return np.linspace((0,0), (1, 1), n)
+    """Create omega metadata for testing."""
+    return np.linspace((0, 0), (1, 1), n)
 
 
 def compare(ims1, ims2):
-    """compare two imageseries"""
+    """Compare two imageseries."""
     if len(ims1) != len(ims2):
-        raise ValueError("lengths do not match")
+        raise ValueError("Lengths do not match")
 
     if ims1.dtype != ims2.dtype:
         raise ValueError(
-            "types do not match: %s is not %s" %
-            (repr(ims1.dtype), repr(ims2.dtype))
+            f"Types do not match: {repr(ims1.dtype)} is not {repr(ims2.dtype)}"
         )
 
     maxdiff = 0.0
@@ -72,8 +70,7 @@ def compare(ims1, ims2):
 
 
 def compare_meta(ims1, ims2):
-    # check metadata (simple immutable cases only for now)
-
+    """Compare metadata of two imageseries."""
     t1 = ims1.metadata['testing']
     t2 = ims2.metadata['testing']
 

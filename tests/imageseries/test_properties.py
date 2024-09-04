@@ -1,15 +1,30 @@
-from .common import ImageSeriesTest, make_array_ims
+import pytest
+from .common import make_array_ims
 
 
-class TestProperties(ImageSeriesTest):
-    def setUp(self):
-        self._a, self._is_a = make_array_ims()
+@pytest.fixture
+def array_and_imageseries():
+    """Fixture to create the array and imageseries."""
+    return make_array_ims()
 
-    def test_prop_nframes(self):
-        self.assertEqual(self._a.shape[0], len(self._is_a))
 
-    def test_prop_shape(self):
-        self.assertEqual(self._a.shape[1:], self._is_a.shape)
+def test_prop_nframes(array_and_imageseries):
+    """Test that the number of frames matches the length of the imageseries."""
+    a, is_a = array_and_imageseries
+    assert a.shape[0] == len(is_a), "Number of frames does not match"
 
-    def test_prop_dtype(self):
-        self.assertEqual(self._a.dtype, self._is_a.dtype)
+
+def test_prop_shape(array_and_imageseries):
+    """Test that the shape of the array matches the imageseries shape."""
+    a, is_a = array_and_imageseries
+    assert (
+        a.shape[1:] == is_a.shape
+    ), "Shape mismatch between array and imageseries"
+
+
+def test_prop_dtype(array_and_imageseries):
+    """Test that the dtype of the array matches the imageseries dtype."""
+    a, is_a = array_and_imageseries
+    assert (
+        a.dtype == is_a.dtype
+    ), "Dtype mismatch between array and imageseries"

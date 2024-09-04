@@ -1,89 +1,99 @@
 import numpy as np
-
-from .common import ImageSeriesTest
-
+import pytest
 from hexrd.core import imageseries
 from hexrd.core.imageseries.omega import OmegaSeriesError, OmegaImageSeries
 
-class TestOmegaSeries(ImageSeriesTest):
 
-    @staticmethod
-    def make_ims(nf, meta):
-        a = np.zeros((nf, 2, 2))
-        ims = imageseries.open(None, 'array', data=a, meta=meta)
-        return ims
+def make_ims(nf, meta):
+    """Creates an image series with nf frames and metadata."""
+    a = np.zeros((nf, 2, 2))
+    ims = imageseries.open(None, 'array', data=a, meta=meta)
+    return ims
 
-    def test_no_omega(self):
-        ims = self.make_ims(2, {})
-        with self.assertRaises(OmegaSeriesError):
-            oms = OmegaImageSeries(ims)
 
-    def test_nframes_mismatch(self):
-        m = dict(omega=np.zeros((3, 2)))
-        ims = self.make_ims(2, m)
-        with self.assertRaises(OmegaSeriesError):
-            oms = OmegaImageSeries(ims)
+def test_no_omega():
+    """Test that an OmegaSeriesError is raised when there is no omega."""
+    ims = make_ims(2, {})
+    with pytest.raises(OmegaSeriesError):
+        OmegaImageSeries(ims)
 
-    def test_negative_delta(self):
-        om = np.zeros((3, 2))
-        om[0,1] = -0.5
-        m = dict(omega=om, dtype=float)
-        ims = self.make_ims(3, m)
-        with self.assertRaises(OmegaSeriesError):
-            oms = OmegaImageSeries(ims)
 
-    def test_one_wedge(self):
-        nf = 5
-        a = np.linspace(0, nf+1, nf+1)
-        om = np.zeros((nf, 2))
-        om[:,0] = a[:-1]
-        om[:,1] = a[1:]
-        m = dict(omega=om, dtype=float)
-        ims = self.make_ims(nf, m)
-        oms = OmegaImageSeries(ims)
-        self.assertEqual(oms.nwedges, 1)
+def test_nframes_mismatch():
+    """Test that an OmegaSeriesError is raised for frame mismatch."""
+    metadata = dict(omega=np.zeros((3, 2)))
+    ims = make_ims(2, metadata)
+    with pytest.raises(OmegaSeriesError):
+        OmegaImageSeries(ims)
 
-    def test_two_wedges(self):
-        nf = 5
-        a = np.linspace(0, nf+1, nf+1)
-        om = np.zeros((nf, 2))
-        om[:,0] = a[:-1]
-        om[:,1] = a[1:]
-        om[3:, :] += 0.1
-        m = dict(omega=om, dtype=float)
-        ims = self.make_ims(nf, m)
-        oms = OmegaImageSeries(ims)
-        self.assertEqual(oms.nwedges, 2)
 
-    def test_compare_omegas(self):
-        nf = 5
-        a = np.linspace(0, nf+1, nf+1)
-        om = np.zeros((nf, 2))
-        om[:,0] = a[:-1]
-        om[:,1] = a[1:]
-        om[3:, :] += 0.1
-        m = dict(omega=om, dtype=float)
-        ims = self.make_ims(nf, m)
-        oms = OmegaImageSeries(ims)
-        domega = om - oms.omegawedges.omegas
-        dnorm = np.linalg.norm(domega)
+def test_negative_delta():
+    """Test that an OmegaSeriesError is raised when omega delta is negative."""
+    omega_data = np.zeros((3, 2))
+    omega_data[0, 1] = -0.5
+    metadata = dict(omega=omega_data, dtype=float)
+    ims = make_ims(3, metadata)
+    with pytest.raises(OmegaSeriesError):
+        OmegaImageSeries(ims)
 
-        msg='omegas from wedges do not match originals'
-        self.assertAlmostEqual(dnorm, 0., msg=msg)
 
-    def test_wedge_delta(self):
-        nf = 5
-        a = np.linspace(0, nf+1, nf+1)
-        om = np.zeros((nf, 2))
-        om[:,0] = a[:-1]
-        om[:,1] = a[1:]
-        om[3:, :] += 0.1
-        m = dict(omega=om, dtype=float)
-        ims = self.make_ims(nf, m)
-        oms = OmegaImageSeries(ims)
+def test_one_wedge():
+    """Test that a single wedge is detected correctly."""
+    nf = 5
+    a = np.linspace(0, nf + 1, nf + 1)
+    omega_data = np.zeros((nf, 2))
+    omega_data[:, 0] = a[:-1]
+    omega_data[:, 1] = a[1:]
+    metadata = dict(omega=omega_data, dtype=float)
+    ims = make_ims(nf, metadata)
+    oms = OmegaImageSeries(ims)
+    assert oms.nwedges == 1
 
-        mydelta =om[nf - 1, 1] - om[nf - 1, 0]
-        d = oms.wedge(oms.nwedges - 1)
-        self.assertAlmostEqual(d['delta'], mydelta)
 
-    # end class
+def test_two_wedges():
+    """Test that two wedges are detected correctly."""
+    nf = 5
+    a = np.linspace(0, nf + 1, nf + 1)
+    omega_data = np.zeros((nf, 2))
+    omega_data[:, 0] = a[:-1]
+    omega_data[:, 1] = a[1:]
+    omega_data[3:, :] += 0.1
+    metadata = dict(omega=omega_data, dtype=float)
+    ims = make_ims(nf, metadata)
+    oms = OmegaImageSeries(ims)
+    assert oms.nwedges == 2
+
+
+def test_compare_omegas():
+    """Test that omegas from wedges match the original omega data."""
+    nf = 5
+    a = np.linspace(0, nf + 1, nf + 1)
+    omega_data = np.zeros((nf, 2))
+    omega_data[:, 0] = a[:-1]
+    omega_data[:, 1] = a[1:]
+    omega_data[3:, :] += 0.1
+    metadata = dict(omega=omega_data, dtype=float)
+    ims = make_ims(nf, metadata)
+    oms = OmegaImageSeries(ims)
+
+    domega = omega_data - oms.omegawedges.omegas
+    dnorm = np.linalg.norm(domega)
+
+    msg = 'omegas from wedges do not match originals'
+    assert dnorm == pytest.approx(0.0), msg
+
+
+def test_wedge_delta():
+    """Test that the wedge delta is calculated correctly."""
+    nf = 5
+    a = np.linspace(0, nf + 1, nf + 1)
+    omega_data = np.zeros((nf, 2))
+    omega_data[:, 0] = a[:-1]
+    omega_data[:, 1] = a[1:]
+    omega_data[3:, :] += 0.1
+    metadata = dict(omega=omega_data, dtype=float)
+    ims = make_ims(nf, metadata)
+    oms = OmegaImageSeries(ims)
+
+    my_delta = omega_data[nf - 1, 1] - omega_data[nf - 1, 0]
+    wedge = oms.wedge(oms.nwedges - 1)
+    assert wedge['delta'] == pytest.approx(my_delta)

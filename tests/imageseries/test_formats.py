@@ -1,127 +1,144 @@
 import os
+import shutil
 import tempfile
-import unittest
-
 import numpy as np
-
-from .common import ImageSeriesTest
+import pytest
+from hexrd.core import imageseries
 from .common import make_array_ims, compare, compare_meta
 
-from hexrd.core import imageseries
+
+@pytest.fixture(scope='class')
+def tmpdir():
+    """Fixture for temporary directory setup and teardown."""
+    dirpath = tempfile.mkdtemp()
+    yield dirpath
+    shutil.rmtree(dirpath)
 
 
-class ImageSeriesFormatTest(ImageSeriesTest):
-    @classmethod
-    def setUpClass(cls):
-        cls.tmpdir = tempfile.mkdtemp()
-
-    @classmethod
-    def tearDownClass(cls):
-        os.rmdir(cls.tmpdir)
+@pytest.fixture
+def h5_file(tmpdir):
+    """Fixture for HDF5 test file path."""
+    return os.path.join(tmpdir, 'test_ims.h5')
 
 
-class TestFormatH5(ImageSeriesFormatTest):
+@pytest.fixture
+def h5_path():
+    """Fixture for HDF5 path."""
+    return 'array-data'
 
-    def setUp(self):
-        self.h5file = os.path.join(self.tmpdir, 'test_ims.h5')
-        self.h5path = 'array-data'
-        self.fmt = 'hdf5'
-        _, self.is_a = make_array_ims()
 
-    def tearDown(self):
-        os.remove(self.h5file)
+@pytest.fixture
+def is_a():
+    """Fixture for creating array image series."""
+    _, is_a = make_array_ims()
+    return is_a
 
-    def test_fmth5(self):
-        """save/load HDF5 format"""
-        imageseries.write(self.is_a, self.h5file, self.fmt, path=self.h5path)
-        is_h = imageseries.open(self.h5file, self.fmt, path=self.h5path)
 
-        diff = compare(self.is_a, is_h)
-        self.assertAlmostEqual(diff, 0., "h5 reconstruction failed")
-        self.assertTrue(compare_meta(self.is_a, is_h))
+@pytest.fixture
+def fc_file(tmpdir):
+    """Fixture for frame-cache file."""
+    return os.path.join(tmpdir, 'frame-cache.npz')
 
-    def test_fmth5_nparray(self):
-        """HDF5 format with numpy array metadata"""
+
+@pytest.fixture
+def threshold():
+    """Fixture for frame-cache threshold."""
+    return 0.5
+
+
+@pytest.fixture
+def cache_file():
+    """Fixture for cache file."""
+    return 'frame-cache.npz'
+
+
+class TestFormatH5:
+
+    def test_fmt_h5(self, h5_file, h5_path, is_a):
+        """Save/load HDF5 format."""
+        imageseries.write(is_a, h5_file, 'hdf5', path=h5_path)
+        is_h = imageseries.open(h5_file, 'hdf5', path=h5_path)
+
+        diff = compare(is_a, is_h)
+        assert diff == pytest.approx(0.0), "HDF5 reconstruction failed"
+        assert compare_meta(is_a, is_h)
+
+    def test_fmt_h5_np_array(self, h5_file, h5_path, is_a):
+        """HDF5 format with numpy array metadata."""
         key = 'np-array'
-        npa = np.array([0,2.0,1.3])
-        self.is_a.metadata[key] = npa
-        imageseries.write(self.is_a, self.h5file, self.fmt, path=self.h5path)
-        is_h = imageseries.open(self.h5file, self.fmt, path=self.h5path)
+        npa = np.array([0, 2.0, 1.3])
+        is_a.metadata[key] = npa
+        imageseries.write(is_a, h5_file, 'hdf5', path=h5_path)
+        is_h = imageseries.open(h5_file, 'hdf5', path=h5_path)
         meta = is_h.metadata
 
         diff = np.linalg.norm(meta[key] - npa)
-        self.assertAlmostEqual(diff, 0., "h5 numpy array metadata failed")
+        assert diff == pytest.approx(0.0), "HDF5 numpy array metadata failed"
 
-    def test_fmth5_nocompress(self):
-        """HDF5 options: no compression"""
-        imageseries.write(self.is_a, self.h5file, self.fmt,
-                          path=self.h5path, gzip=0)
-        is_h = imageseries.open(self.h5file, self.fmt, path=self.h5path)
+    def test_fmt_h5_no_compress(self, h5_file, h5_path, is_a):
+        """HDF5 options: no compression."""
+        imageseries.write(is_a, h5_file, 'hdf5', path=h5_path, gzip=0)
+        is_h = imageseries.open(h5_file, 'hdf5', path=h5_path)
 
-        diff = compare(self.is_a, is_h)
-        self.assertAlmostEqual(diff, 0., "h5 reconstruction failed")
-        self.assertTrue(compare_meta(self.is_a, is_h))
+        diff = compare(is_a, is_h)
+        assert diff == pytest.approx(0.0), "HDF5 reconstruction failed"
+        assert compare_meta(is_a, is_h)
 
-    def test_fmth5_compress_err(self):
-        """HDF5 options: compression level out of range"""
-        with self.assertRaises(ValueError):
-            imageseries.write(self.is_a, self.h5file, self.fmt,
-                              path=self.h5path, gzip=10)
+    def test_fmt_h5_compress_err(self, h5_file, h5_path, is_a):
+        """HDF5 options: compression level out of range."""
+        with pytest.raises(ValueError):
+            imageseries.write(is_a, h5_file, 'hdf5', path=h5_path, gzip=10)
 
-    def test_fmth5_chunk(self):
-        """HDF5 options: chunk size"""
-        imageseries.write(self.is_a, self.h5file, self.fmt,
-                          path=self.h5path, chunk_rows=0)
-        is_h = imageseries.open(self.h5file, self.fmt, path=self.h5path)
+    def test_fmt_h5_chunk(self, h5_file, h5_path, is_a):
+        """HDF5 options: chunk size."""
+        imageseries.write(is_a, h5_file, 'hdf5', path=h5_path, chunk_rows=0)
+        is_h = imageseries.open(h5_file, 'hdf5', path=h5_path)
 
-        diff = compare(self.is_a, is_h)
-        self.assertAlmostEqual(diff, 0., "h5 reconstruction failed")
-        self.assertTrue(compare_meta(self.is_a, is_h))
+        diff = compare(is_a, is_h)
+        assert diff == pytest.approx(0.0), "HDF5 reconstruction failed"
+        assert compare_meta(is_a, is_h)
 
 
-class TestFormatFrameCache(ImageSeriesFormatTest):
+class TestFormatFrameCache:
 
-    def setUp(self):
-        self.fcfile = os.path.join(self.tmpdir,  'frame-cache.npz')
-        self.fmt = 'frame-cache'
-        self.thresh = 0.5
-        self.cache_file='frame-cache.npz'
-        _, self.is_a = make_array_ims()
-
-    def tearDown(self):
-        os.remove(os.path.join(self.tmpdir, self.cache_file))
-
-    def test_fmtfc(self):
-        """save/load frame-cache format"""
-        imageseries.write(self.is_a, self.fcfile, self.fmt,
-            threshold=self.thresh, cache_file=self.cache_file)
-        is_fc = imageseries.open(self.fcfile, self.fmt)
-        diff = compare(self.is_a, is_fc)
-        self.assertAlmostEqual(diff, 0., "frame-cache reconstruction failed")
-        self.assertTrue(compare_meta(self.is_a, is_fc))
-
-    def test_fmtfc_nocache_file(self):
-        """save/load frame-cache format with no cache_file arg"""
+    def test_fmt_fc(self, fc_file, is_a, threshold, cache_file):
+        """Save/load frame-cache format."""
         imageseries.write(
-            self.is_a, self.fcfile, self.fmt,
-            threshold=self.thresh
+            is_a,
+            fc_file,
+            'frame-cache',
+            threshold=threshold,
+            cache_file=cache_file,
         )
-        is_fc = imageseries.open(self.fcfile, self.fmt)
-        diff = compare(self.is_a, is_fc)
-        self.assertAlmostEqual(diff, 0., "frame-cache reconstruction failed")
-        self.assertTrue(compare_meta(self.is_a, is_fc))
+        is_fc = imageseries.open(fc_file, 'frame-cache')
+        diff = compare(is_a, is_fc)
+        assert diff == pytest.approx(0.0), "Frame-cache reconstruction failed"
+        assert compare_meta(is_a, is_fc)
 
-    def test_fmtfc_nparray(self):
-        """frame-cache format with numpy array metadata"""
+    def test_fmt_fc_no_cache_file(self, fc_file, is_a, threshold):
+        """Save/load frame-cache format with no cache_file arg."""
+        imageseries.write(is_a, fc_file, 'frame-cache', threshold=threshold)
+        is_fc = imageseries.open(fc_file, 'frame-cache')
+        diff = compare(is_a, is_fc)
+        assert diff == pytest.approx(0.0), "Frame-cache reconstruction failed"
+        assert compare_meta(is_a, is_fc)
+
+    def test_fmt_fc_np_array(self, fc_file, is_a, threshold, cache_file):
+        """Frame-cache format with numpy array metadata."""
         key = 'np-array'
-        npa = np.array([0,2.0,1.3])
-        self.is_a.metadata[key] = npa
+        npa = np.array([0, 2.0, 1.3])
+        is_a.metadata[key] = npa
 
-        imageseries.write(self.is_a, self.fcfile, self.fmt,
-            threshold=self.thresh, cache_file=self.cache_file
+        imageseries.write(
+            is_a,
+            fc_file,
+            'frame-cache',
+            threshold=threshold,
+            cache_file=cache_file,
         )
-        is_fc = imageseries.open(self.fcfile, self.fmt)
+        is_fc = imageseries.open(fc_file, 'frame-cache')
         meta = is_fc.metadata
         diff = np.linalg.norm(meta[key] - npa)
-        self.assertAlmostEqual(diff, 0.,
-                               "frame-cache numpy array metadata failed")
+        assert diff == pytest.approx(
+            0.0
+        ), "Frame-cache numpy array metadata failed"
