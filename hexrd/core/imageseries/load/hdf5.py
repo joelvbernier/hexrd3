@@ -1,5 +1,6 @@
 """HDF5 adapter class
 """
+
 import h5py
 import warnings
 
@@ -28,21 +29,21 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
 
     def __init__(self, fname, **kwargs):
         if isinstance(fname, h5py.File):
-            self.__h5name = fname.filename
+            self._h5name = fname.filename
             self._h5file = fname
         else:
-            self.__h5name = fname
-            self._h5file = h5py.File(self.__h5name, 'r')
+            self._h5name = fname
+            self._h5file = h5py.File(self._h5name, 'r')
 
-        self.__path = kwargs['path']
-        self.__dataname = kwargs.pop('dataname', 'images')
-        self.__images = '/'.join([self.__path, self.__dataname])
+        self._path = kwargs['path']
+        self._dataname = kwargs.pop('dataname', 'images')
+        self._images = '/'.join([self._path, self._dataname])
         self._load_data()
         self._meta = self._getmeta()
 
     def close(self):
-        self.__image_dataset = None
-        self.__data_group = None
+        self._image_dataset = None
+        self._data_group = None
         self._h5file.close()
         self._h5file = None
 
@@ -53,7 +54,7 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
         #     an issue arises at some point
         try:
             self.close()
-        except(Exception):
+        except Exception:
             warnings.warn("HDF5ImageSeries could not close h5 file")
 
     def __getitem__(self, key):
@@ -63,9 +64,9 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
                     f'key {key} is out of range for imageseris with length 1'
                 )
             # !!! necessary when not returning a slice
-            return np.asarray(self.__image_dataset)
+            return np.asarray(self._image_dataset)
         else:
-            return self.__image_dataset[key]
+            return self._image_dataset[key]
 
     def __iter__(self):
         return ImageSeriesIterator(self)
@@ -75,46 +76,42 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
             return 1
         else:
             # !!! must be 3-d; exception handled in load_data()
-            return len(self.__image_dataset)
+            return len(self._image_dataset)
 
     def __getstate__(self):
         # Remove any non-pickleable attributes
         to_remove = [
             '_h5file',
-            '__image_dataset',
-            '__data_group',
+            '_image_dataset',
+            '_data_group',
         ]
-
-        # Prefix them with the private prefix
-        prefix = f'_{self.__class__.__name__}'
-        to_remove = [f'{prefix}{x}' for x in to_remove]
 
         # Make a copy of the dict to modify
         state = self.__dict__.copy()
 
         # Remove them
         for attr in to_remove:
-            state.pop(attr)
+            state.pop(attr, None)
 
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-        self._h5file = h5py.File(self.__h5name, 'r')
+        self._h5file = h5py.File(self._h5name, 'r')
         self._load_data()
 
     def _load_data(self):
-        self.__image_dataset = self._h5file[self.__images]
-        self._ndim = self.__image_dataset.ndim
+        self._image_dataset = self._h5file[self._images]
+        self._ndim = self._image_dataset.ndim
         if self._ndim not in [2, 3]:
             raise RuntimeError(
                 f'Image data must be a 2-d or 3-d array; yours is {self._ndim}'
             )
-        self.__data_group = self._h5file[self.__path]
+        self._data_group = self._h5file[self._path]
 
     def _getmeta(self):
         mdict = {}
-        for k, v in list(self.__data_group.attrs.items()):
+        for k, v in list(self._data_group.attrs.items()):
             mdict[k] = v
 
         return mdict
@@ -129,11 +126,11 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
 
     @property
     def dtype(self):
-        return self.__image_dataset.dtype
+        return self._image_dataset.dtype
 
     @property
     def shape(self):
         if self._ndim == 2:
-            return self.__image_dataset.shape
+            return self._image_dataset.shape
         else:
-            return self.__image_dataset.shape[1:]
+            return self._image_dataset.shape[1:]
