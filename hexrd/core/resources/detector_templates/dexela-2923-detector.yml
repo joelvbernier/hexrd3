@@ -1,0 +1,6 @@
+Dexela 2923:
+  saturation_level: 15800
+  pixels:
+    columns: 3072
+    rows: 3888
+    size: [0.0748, 0.0748]
