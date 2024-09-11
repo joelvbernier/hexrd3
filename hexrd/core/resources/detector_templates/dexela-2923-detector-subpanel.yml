@@ -1,0 +1,6 @@
+Dexela 2923 Subpanel:
+  saturation_level: 15800
+  pixels:
+    columns: 1536
+    rows: 1944
+    size: [0.0748, 0.0748]
