@@ -1,0 +1,6 @@
+GE:
+  saturation_level: 14500
+  pixels:
+    columns: 2048
+    rows: 2048
+    size: [0.2, 0.2]
